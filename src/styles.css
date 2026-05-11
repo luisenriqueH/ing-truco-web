@@ -1,0 +1,68 @@
+/* Modern Global Styles - Truco Venezolano */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+:root {
+  --primary: #f59e0b; /* Golden Yellow */
+  --secondary: #3b82f6; /* Blue */
+  --accent: #ef4444; /* Red */
+  --bg-dark: #0f172a;
+  --glass: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.15);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-dark);
+  color: white;
+  overflow: hidden;
+}
+
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.btn-modern {
+  background: linear-gradient(135deg, var(--primary), #d97706);
+  color: #1e1b4b;
+  border: none;
+  padding: 1.25rem 2.5rem;
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 20px -5px rgba(245, 158, 11, 0.4);
+}
+
+.btn-modern:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 15px 30px -5px rgba(245, 158, 11, 0.6);
+}
+
+.btn-modern:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.btn-store {
+  background: linear-gradient(135deg, #10b981, #059669); /* Green for Money */
+  color: white;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  box-shadow: 0 8px 15px -5px rgba(16, 185, 129, 0.4);
+}
+
+/* Truco Level Colors */
+.btn-truco-3 { background: linear-gradient(135deg, #10b981, #059669) !important; color: white !important; } /* Verde */
+.btn-truco-6 { background: linear-gradient(135deg, #f59e0b, #d97706) !important; color: white !important; } /* Amarillo */
+.btn-truco-9 { background: linear-gradient(135deg, #f97316, #ea580c) !important; color: white !important; } /* Naranja */
+.btn-truco-12 { background: linear-gradient(135deg, #ef4444, #dc2626) !important; color: white !important; } /* Rojo */

@@ -34,8 +34,9 @@ class Baraja extends Phaser.GameObjects.Group implements IBaraja {
   tipo = 'baraja';
   zone: Zone;
 
-  step: number = 0.2 * this.escala;
+  step: number = 0.1 * this.escala;
   cartas: ICarta[] = [];
+  salidas: ICarta[] = [];
 
   get escala() { return this.service.escala; }
   get main() { return this.service.main; }
@@ -149,7 +150,7 @@ class Baraja extends Phaser.GameObjects.Group implements IBaraja {
         if (!dropped) {
           this.service.local.soltar(this)
         }
-      break;
+        break;
 
       default: break;
     }
@@ -175,7 +176,7 @@ class Baraja extends Phaser.GameObjects.Group implements IBaraja {
     });
   }
 
-  tween(props: any, duration: number, onStart?: () => void, onComplete?: () => void) {
+  tween(props: any, duration: number = 500, onStart?: () => void, onComplete?: () => void) {
     const value: (pipe: (i: number) => number) => Phaser.Types.Tweens.TweenPropConfig = (pipe: (i: number) => number) => {
       return {
         value: {
@@ -208,7 +209,9 @@ class Baraja extends Phaser.GameObjects.Group implements IBaraja {
 
     const config: Phaser.Types.Tweens.TweenBuilderConfig = {
       targets: this.getChildren(),
-      props, duration,
+      props,
+      duration,
+      ease: 'Cubic.easeOut',
       onStart, onComplete
     }
     this.scene.tweens.add(config);
@@ -247,6 +250,7 @@ class Baraja extends Phaser.GameObjects.Group implements IBaraja {
     // console.log('sacar', n , p);
     this.setDatos(carta, n, p);
     this.remove(carta);
+    this.salidas.push(carta);
     this.updateZone();
     return carta;
   }

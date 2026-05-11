@@ -36,6 +36,11 @@ namespace IngJuego {
   }
 
   export const Zone = UI.Zone;
+  export const VoiceButton = UI.VoiceButton;
+  export const Marcador = UI.Marcador;
+  export const LogView = UI.LogView;
+  export const VoiceMenu = UI.VoiceMenu;
+  export const DropdownMenu = UI.DropdownMenu;
 
 }
 

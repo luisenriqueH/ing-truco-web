@@ -1,0 +1,454 @@
+{
+  "frames": [
+    {
+      "filename": "reverso",
+      "frame": {"x":1200,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "unodeoro",
+      "frame": {"x":0,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "dosdeoro",
+      "frame": {"x":100,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "tresdeoro",
+      "frame": {"x":200,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cuatrodeoro",
+      "frame": {"x":300,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cincodeoro",
+      "frame": {"x":400,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "seisdeoro",
+      "frame": {"x":500,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "sietedeoro",
+      "frame": {"x":600,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "ochodeoro",
+      "frame": {"x":700,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "nuevedeoro",
+      "frame": {"x":800,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "diezdeoro",
+      "frame": {"x":900,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "oncedeoro",
+      "frame": {"x":1000,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "docedeoro",
+      "frame": {"x":1100,"y":0,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "unodecopa",
+      "frame": {"x":0,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "dosdecopa",
+      "frame": {"x":100,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "tresdecopa",
+      "frame": {"x":200,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cuatrodecopa",
+      "frame": {"x":300,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cincodecopa",
+      "frame": {"x":400,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "seisdecopa",
+      "frame": {"x":500,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "sietedecopa",
+      "frame": {"x":600,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "ochodecopa",
+      "frame": {"x":700,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "nuevedecopa",
+      "frame": {"x":800,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "diezdecopa",
+      "frame": {"x":900,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "oncedecopa",
+      "frame": {"x":1000,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "docedecopa",
+      "frame": {"x":1100,"y":150,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "unodeespada",
+      "frame": {"x":0,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "dosdeespada",
+      "frame": {"x":100,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "tresdeespada",
+      "frame": {"x":200,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cuatrodeespada",
+      "frame": {"x":300,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cincodeespada",
+      "frame": {"x":400,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "seisdeespada",
+      "frame": {"x":500,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "sietedeespada",
+      "frame": {"x":600,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "ochodeespada",
+      "frame": {"x":700,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "nuevedeespada",
+      "frame": {"x":800,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "diezdeespada",
+      "frame": {"x":900,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "oncedeespada",
+      "frame": {"x":1000,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "docedeespada",
+      "frame": {"x":1100,"y":300,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "unodebasto",
+      "frame": {"x":0,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "dosdebasto",
+      "frame": {"x":100,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "tresdebasto",
+      "frame": {"x":200,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cuatrodebasto",
+      "frame": {"x":300,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "cincodebasto",
+      "frame": {"x":400,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "seisdebasto",
+      "frame": {"x":500,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "sietedebasto",
+      "frame": {"x":600,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "ochodebasto",
+      "frame": {"x":700,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "nuevedebasto",
+      "frame": {"x":800,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "diezdebasto",
+      "frame": {"x":900,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "oncedebasto",
+      "frame": {"x":1000,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    },
+    {
+      "filename": "docedebasto",
+      "frame": {"x":1100,"y":450,"w":100,"h":150},
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {"x":0,"y":0,"w":100,"h":150},
+      "sourceSize": {"w":100,"h":150},
+      "pivot": {"x":0.5,"y":0.5}
+    }
+  ],
+  "meta": {
+    "app": "http://www.codeandweb.com/texturepacker",
+    "version": "1.0",
+    "image": "forrest.png",
+    "format": "RGBA8888",
+    "size": {"w":1300,"h":600},
+    "scale": "1",
+    "smartupdate": "$TexturePacker:SmartUpdate:c9b5e79ca7f98f7ae7bae194943be2e6:688f1f9df7d95abccc98eb982bdd2a23:8056528aade6b91f4a89f8c9da7f2d4c$"
+  }
+}

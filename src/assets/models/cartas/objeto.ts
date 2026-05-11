@@ -42,7 +42,8 @@ interface IObjeto {
   drop: (dropZone: Zone) => void;
   dropped: (item: IObjeto) => void;
 
-  ubicar: (x: number, y: number, z?: number) => void;
+  isAuto?: boolean;
+  ubicar(x: number, y: number, z?: number): void;
 
   tween: (props: IProps, duration: number, onStart?: () => void, onComplete?: () => void) => void;
 
@@ -64,6 +65,7 @@ class Objeto implements IObjeto {
   depth: number;
 
   tipo = 'carta';
+  isAuto: boolean = false;
   datos: DataObjeto;
   zone: Zone;
 

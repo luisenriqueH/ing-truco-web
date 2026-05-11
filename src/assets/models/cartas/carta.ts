@@ -128,8 +128,14 @@ class Carta extends Phaser.GameObjects.Sprite implements ICarta {
     });
   }
   dragstart() {
-    this.service.local.tomar(this);
-    // this.tomar();
+    const isMyTurn = this.juego?.turnoActual === this.service.local.indice;
+    const isLocalPlayer = this.service.local === this.enMano;
+    
+    if (isMyTurn && isLocalPlayer) {
+      this.service.local.tomar(this);
+    } else {
+      console.log('No es tu turno o la carta no está en tu mano');
+    }
   }
   holdstart() {
     // this.tomar();
@@ -166,10 +172,12 @@ class Carta extends Phaser.GameObjects.Sprite implements ICarta {
     if (z !== undefined) { this.setDepth(z); }
   }
 
-  tween(props: any, duration: number, onStart?: () => void, onComplete?: () => void) {
+  tween(props: any, duration: number = 500, onStart?: () => void, onComplete?: () => void) {
     const config: Phaser.Types.Tweens.TweenBuilderConfig = {
       targets: this,
-      props, duration,
+      props,
+      duration,
+      ease: 'Cubic.easeOut',
       onStart, onComplete
     }
     this.scene.tweens.add(config);
@@ -192,7 +200,7 @@ class Carta extends Phaser.GameObjects.Sprite implements ICarta {
     'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis',
     'siete', /*'ocho', 'nueve',*/ 'diez', 'once', 'doce'
   ];
-  static pintas = [ 'oro', 'copa', 'espada', 'basto' ];
+  static pintas = ['oro', 'copa', 'espada', 'basto'];
   setDatos(n?: number, p?: number) {
     let numero: string; let pinta: string;
     if (isNaN(n) || n === undefined) { numero = Phaser.Math.RND.pick(Carta.numeros); }

@@ -21,7 +21,7 @@ interface IJugador {
   face: Phaser.GameObjects.Image;
   onView: IJugador[];
   pareja: Equipo;
-  enMano: IObjeto[];
+  enMano: ICarta[];
 
   mano: Mano;
   mesa: Mesa;
@@ -36,6 +36,8 @@ interface IJugador {
 
   datos: DataJugador;
   nombre: string;
+  label: Phaser.GameObjects.Text;
+  highlight: Phaser.GameObjects.Graphics;
 
   distancia: (spot: Phaser.Math.Vector2) => Phaser.Math.Vector2 ;
   unsetAngle: (vector: Phaser.Math.Vector2) => Phaser.Math.Vector2 ;
@@ -44,6 +46,7 @@ interface IJugador {
 
   setMano: () => void;
   setMesa: () => void;
+  setHighlight: (yes: boolean) => void;
   ver: (indice: number, yes: boolean) => void;
 
   mesaDrop: (carta: ICarta) => void;
@@ -65,26 +68,33 @@ interface IJugador {
 
   hablar: (texto: string) => void;
   signal: (faceID: string) => Promise<void>;
+  onContarPuntos: () => Promise<void>;
 
 }
 
 class Jugador implements IJugador {
 
-  tipo = 'jugador';
+  tipo = 'humano';
   internal = new Phaser.Events.EventEmitter();
 
   face: Phaser.GameObjects.Image;
   onView: IJugador[] = [];
+  estaContando: boolean = false;
   pareja: Equipo;
-  enMano: IObjeto[] = [];
+  get enMano(): ICarta[] {
+    return this.mano ? this.mano.cartas : [];
+  }
 
   mano: Mano;
   mesa: Mesa;
 
+  label: Phaser.GameObjects.Text;
+  highlight: Phaser.GameObjects.Graphics;
+
   // #region info
   get screen() { return this.service.phaser.screen; }
   get main(): Main { return this.service.main; }
-  get juego(): Juego { return this.main.juego; }
+  get juego(): Juego { return this.service.juego; }
   get facePlace(): Phaser.Math.Vector2 {
     return this.setAngle(new Phaser.Math.Vector2(0, (3 * this.screen.h / 4) - (80 * this.service.escala)));
     // return this.setAngle(new Phaser.Math.Vector2(0, (3 * screen.h / 4) - (800 * this.scene.escala)));
@@ -169,9 +179,9 @@ class Jugador implements IJugador {
   // mesaFull =>
   speech: Phaser.Sound.HTML5AudioSound | Phaser.Sound.WebAudioSound;
   constructor(public service: GameService, public nombre: string, public indice: number) {
-    this.render();
     this.setMano();
     this.setMesa();
+    this.render();
 
     const config = {
       mute: false,
@@ -184,15 +194,39 @@ class Jugador implements IJugador {
     };
     this.speech = this.main.sound.addAudioSprite('voces/miguel', config);
     // this.sound.play('envido');
+
+    // Escuchar evento para iniciar el conteo (todos los jugadores)
+    this.service.phaser.emitter.on('contarPuntosStarted', () => this.onContarPuntos());
+
+    // Escuchar evento de Truco (solo el humano recibe el prompt)
+    this.service.phaser.emitter.on('trucoCantado', (data: any) => {
+      if (this.tipo === 'humano' && data.jugador.pareja.indice !== this.pareja.indice) {
+        this.onTrucoPrompt(data);
+      }
+    });
   }
 
   render() {
-    const label = this.main.add.text(0, 0, this.nombre);
+    if (!this.label) {
+      this.label = this.main.add.text(0, 0, this.nombre);
+      this.label.setOrigin(0.5, 0.5);
+      this.label.setFontSize(12);
+    }
     let menos = (80 * this.service.escala);
     if (this.indice === 0) { menos = -menos; }
-    label.setOrigin(0.5, 0.5);
-    label.setPosition(this.facePlace.x, this.facePlace.y + menos);
-    label.setFontSize(12);
+    if (!this.highlight) {
+      this.highlight = this.main.add.graphics();
+      this.highlight.setDepth(-1);
+    }
+    this.highlight.clear();
+    this.highlight.fillStyle(0xffffff, 0.2);
+    this.highlight.fillCircle(0, 0, 40 * this.service.escala);
+    this.highlight.setPosition(this.facePlace.x, this.facePlace.y);
+    this.highlight.setVisible(false); // Default to hidden
+
+    this.label.setPosition(this.facePlace.x, this.facePlace.y + menos);
+    this.mano.setZone();
+    this.mesa.setZone();
   }
   setMano() {
     this.mano = new Mano(this);
@@ -200,6 +234,57 @@ class Jugador implements IJugador {
   setMesa() {
     this.mesa = new Mesa(this);
   }
+  setHighlight(value: boolean) {
+    if (this.face) {
+      this.face.setAlpha(value ? 1 : 0.5);
+    }
+    // Resaltar las cartas en mano si es el turno del jugador
+    if (this.mano && this.mano.cartas) {
+      this.mano.cartas.forEach((carta: ICarta) => {
+        carta.setAlpha(value ? 1 : 0.8);
+        
+        // SOLO modificar escala si la carta NO se está animando (ej: repartiendo o moviéndose)
+        if (!this.main.tweens.isTweening(carta)) {
+          const baseScale = this.indice === 0 ? this.service.escala * 1.5 : this.service.escala;
+          if (value) {
+            carta.setScale(baseScale * 1.15);
+            carta.setDepth(200);
+          } else {
+            carta.setScale(baseScale);
+            carta.setDepth(150);
+          }
+          carta.updateZone();
+        }
+      });
+    }
+
+    // Mostrar/Ocultar la zona de la mesa según el turno
+    if (this.mesa && this.mesa.zone) {
+      if (value) {
+        this.mesa.zone.setVisible(true);
+        this.mesa.zone.setInteractive(true);
+      } else {
+        this.mesa.zone.setVisible(false);
+        this.mesa.zone.setInteractive(false);
+      }
+    }
+
+    if (this.highlight) {
+      this.highlight.setVisible(value);
+      if (value) {
+        this.main.tweens.add({
+          targets: this.highlight,
+          alpha: { from: 0.2, to: 0.5 },
+          duration: 500,
+          yoyo: true,
+          repeat: -1
+        });
+      } else {
+        this.main.tweens.killTweensOf(this.highlight);
+      }
+    }
+  }
+
   update() {
     console.log(this.onView);
   }
@@ -207,6 +292,14 @@ class Jugador implements IJugador {
   // #region zone
   mesaDrop(carta: ICarta) {
     this.recibir(carta);
+    
+    // IMPORTANTE: Registrar la jugada para que cuente al evaluar la ronda
+    if (!this.juego.onJuego) {
+      this.juego.partida.manoActual.registrarJugada(this, carta);
+      console.log(`%c ${this.nombre} (Humano) juega ${carta.numero} de ${carta.pinta} `, 'color: #aaa;');
+      this.service.phaser.emitter.emit('cardPlayed', { jugador: this, carta });
+      this.juego.proximoTurno();
+    }
   }
   // #endregion zone
 
@@ -238,30 +331,37 @@ class Jugador implements IJugador {
         item.updateZone();
         resolve();
       }
-      item.tween(props, 100, onStart, onComplete);
+      item.tween(props, 400, onStart, onComplete);
     });
 
   }
   soltar(item: IObjeto, zone?: Zone, delta?: any): Promise<IObjeto> {
-
     item.enMano = undefined;
-    this.enMano = this.enMano.filter((a) => a !== item);
     return new Promise((resolve) => {
       const onComplete = () => {
         // this.service.data.update();
+        if (zone?.name === 'mesa' && item.tipo === 'carta') {
+          this.mesa.add(item as ICarta);
+        }
         item.updateZone();
         item.setInteractive();
         resolve(item);
       }
 
-      const props = { x: item.x, y: item.y, rotation: item.rotation, scale: item.escala, depth: 0 };
+      const props = { x: item.x, y: item.y, rotation: item.rotation, scale: this.service.escala, depth: 0 };
       if (zone) { props.x = zone.x; props.y = zone.y; props.rotation = zone.rotation; }
       if (delta) {
         for (const key of Object.keys(delta)) {
           props[key] += delta[key];
         }
       }
-      item.tween(props, 100, undefined, onComplete);
+      const onStart = () => {
+        if (zone?.name === 'mesa' && item.tipo === 'carta') {
+          this.mano.remove(item as ICarta);
+        }
+      };
+
+      item.tween(props, 400, onStart, onComplete);
 
     });
 
@@ -298,20 +398,22 @@ class Jugador implements IJugador {
       const place = new Phaser.Math.Vector2(distancia.x, 0);
       place.add(this.unsetAngle(this.lugar));
       const spot = this.setAngle(place);
+      const baseScale = this.indice === 0 ? this.service.escala * 1.5 : this.service.escala;
       const props = {
         x: spot.x, y: spot.y,
-        scale: 2 * this.service.escala,
+        scale: baseScale,
         rotation: this.rotation,
-        depth: 100,
+        depth: 150,
       };
       const onComplete = () => {
-        this.mano.add(carta);
+        this.mesa.remove(carta); // Quitar de la mesa
+        this.mano.add(carta);    // Añadir a la mano
 
         this.main.children.bringToTop(carta);
         carta.updateZone();
         resolve();
       };
-      carta.tween(props, 200, undefined, onComplete);
+      carta.tween(props, 600, undefined, onComplete);
     });
   }
   lanzar(carta: ICarta, quemar: boolean = false): Promise<void> {
@@ -337,6 +439,95 @@ class Jugador implements IJugador {
       // this.speech.play(texto);
       this.juego.hablar({ jugador: this, texto })
         .then(() => resolve());
+    });
+  }
+
+  async onContarPuntos(): Promise<void> {
+    if (this.estaContando) return;
+    this.estaContando = true;
+    console.log(`%c [EVENTO] ${this.nombre} inicia su proceso de conteo. `, 'color: #00ccff;');
+
+    // 1. Tomar las cartas que están en su mesa (las que ha jugado)
+    if (this.mesa.cartas.length > 0) {
+      await this.mano.cogerMano();
+    }
+
+    // 2. SEGURIDAD: Esperar a tener las 3 cartas antes de revelar
+    // Si por animaciones o lag aún no están las 3, esperamos al evento 'manoFull'
+    if (this.enMano.length < 3) {
+      console.log(`%c [ESPERA] ${this.nombre} esperando completar su mano (actual: ${this.enMano.length})... `, 'color: #aaaaaa;');
+      await new Promise(resolve => {
+        const timeout = setTimeout(() => {
+          console.warn(`%c [TIMEOUT] ${this.nombre} no completó su mano a tiempo. `, 'color: #ff0000;');
+          resolve(false);
+        }, 3000);
+
+        this.service.phaser.emitter.once('manoFull', (j: any) => {
+          if (j === this) {
+            clearTimeout(timeout);
+            resolve(true);
+          }
+        });
+      });
+    }
+
+    // 3. Revelar y colocar todas las cartas una al lado de la otra
+    const todasLasCartas = [...this.enMano];
+    
+    if (todasLasCartas.length < 3) {
+      console.warn(`%c ${this.nombre} intenta contar con ${todasLasCartas.length} cartas. Deberían ser 3. `, 'color: #ffaa00;');
+    }
+
+    todasLasCartas.forEach(c => { if (c.tapada) c.destapar(); });
+
+    const promesasAnim = todasLasCartas.map((carta, i) => {
+      return new Promise<void>(resolve => {
+        const areaMesa = this.mesa.zone;
+        const spacing = 75 * this.service.escala; // Más compacto para evitar colisiones laterales
+        
+        // Desplazamos más hacia afuera del centro para ganar espacio
+        const offsetAlCentro = 120 * this.service.escala;
+        const centroX = areaMesa.x + Math.cos(this.rotation + Math.PI/2) * offsetAlCentro;
+        const centroY = areaMesa.y + Math.sin(this.rotation + Math.PI/2) * offsetAlCentro;
+
+        // Centrar la fila de cartas respecto a la rotación del jugador
+        const totalWidth = (todasLasCartas.length - 1) * spacing;
+        const startX = centroX - (totalWidth / 2) * Math.cos(this.rotation);
+        const startY = centroY - (totalWidth / 2) * Math.sin(this.rotation);
+
+        const targetX = startX + (i * spacing) * Math.cos(this.rotation);
+        const targetY = startY + (i * spacing) * Math.sin(this.rotation);
+
+        this.main.tweens.add({
+          targets: carta,
+          x: targetX,
+          y: targetY,
+          scale: this.service.escala * 1.1, // Escala ligeramente menor para mayor claridad
+          rotation: areaMesa.rotation,
+          depth: 3000 + i,
+          duration: 800,
+          ease: 'Back.easeOut',
+          onComplete: () => resolve()
+        });
+      });
+    });
+    await Promise.all(promesasAnim);
+  }
+
+  onTrucoPrompt(data: { jugador: any, nivel: number, texto: string }) {
+    console.log(`%c [PROMPT] Mostrando overlay de Truco al Humano `, 'color: #00ffff;');
+    
+    // El sistema de UI ya tiene un 'mostrarPregunta' que recibe texto y un callback booleano
+    // Para el Truco, usaremos el mismo patrón:
+    const nivelNombre = this.juego.truco.getNombreNivel(data.nivel);
+    const mensaje = `${data.jugador.nombre} cantó ${nivelNombre.toUpperCase()}. ¿Aceptas?`;
+
+    this.service.phaser.emitter.emit('mostrarPregunta', {
+      texto: mensaje,
+      callback: (acepta: boolean) => {
+        const respuesta = acepta ? 'quiero' : 'no quiero';
+        this.hablar(respuesta);
+      }
     });
   }
   play(texto: string) {
@@ -391,28 +582,39 @@ class Jugador implements IJugador {
     }
     // console.log('dragAuto', this.nombre, props, zone);
     return new Promise((resolve) => {
-      const onStart = () => this.tomar(item);
-      const onComplete = () => {
-        // console.log(props);
+      item.isAuto = true; // Marcamos como movimiento automático
+      item.tween(props, 500, undefined, () => {
         if (zone) {
           zone.dropped(item);
-          resolve()
-        } else {
-          this.soltar(item, zone/*, props*/).then(() => resolve());
         }
-      }
-      item.tween(props, 200, onStart, onComplete);
+        item.isAuto = false; // Ahora sí terminó
+        resolve();
+      });
     });
   }
   cogerAuto(carta: ICarta, indice: number): Promise<void> {
     return new Promise((resolve) => {
-      const place = new Phaser.Math.Vector2((indice - 1) * 200 * this.service.escala, 0);
+      // Ajustar espaciado según la escala (200 para local, 150 para otros)
+      const spacing = this.indice === 0 ? 150 : 100;
+      const baseScale = this.indice === 0 ? this.service.escala * 1.5 : this.service.escala;
+      
+      const place = new Phaser.Math.Vector2((indice - 1) * spacing * this.service.escala, 0);
       const spot = this.setAngle(place);
-      const props = { x: spot.x, y: spot.y, rotation: this.rotation };
+      const props = { 
+        x: spot.x, 
+        y: spot.y, 
+        rotation: this.rotation, 
+        scale: baseScale,
+        depth: 150
+      };
       // console.log('cogerAuto', this.nombre, carta.nombre, props, this.mano.zone);
       this.dragAuto(carta, props, this.mano.zone)
         .then(() => {
-          carta.tapar();
+          if (this.tipo === 'humano') {
+            carta.destapar(); // Mostrar al jugador local
+          } else {
+            carta.tapar();    // Ocultar para IAs
+          }
           resolve()
         });
     });

@@ -1,7 +1,5 @@
-import { GameService } from 'src/app/services/game.service';
-
-import { IngJuego } from "src/assets/models";
-import { IngTruco } from 'src/app/models';
+import { GameService } from '../../services/game.service';
+import { IngJuego } from "../../../assets/models";
 
 export class Main extends Phaser.Scene {
 
@@ -15,8 +13,14 @@ export class Main extends Phaser.Scene {
     return zoomIn;
   }
 
-  constructor(public service: GameService) {
-    super('main');
+  constructor(public service: GameService, key: string = 'main') {
+    super(key);
+  }
+
+  init(data: { service: GameService }) {
+    if (data && data.service) {
+      this.service = data.service;
+    }
   }
   preload() {
     console.log('preload');
@@ -25,38 +29,80 @@ export class Main extends Phaser.Scene {
     this.load.image('shadow', 'assets/sprites/shadow.png');
     this.load.svg('wood', 'assets/svg/wood.svg');
     this.load.atlas('signal', 'assets/atlas/signal.png', 'assets/atlas/signal.json');
-    this.load.atlas('naipes', 'assets/atlas/' + this.service.naipes + '.png', 'assets/atlas/naipes.json');
+    this.load.atlas('naipes', 'assets/atlas/' + (this.service?.naipes || 'naipes') + '.png', 'assets/atlas/naipes.json');
   }
   create() {
-
+    if (!this.service) {
+      console.warn('Main scene started without service, waiting for re-start...');
+      return;
+    }
+    this.service.main = this;
     console.log('create', this.service.escala);
     const camera = this.cameras.main;
     camera.centerOn(0, 0);
 
+    this.scale.on('resize', this.onResize, this);
+    this.onResize();
+
+    this.juego = new IngJuego.Regla.Juego(this.service);
+    this.service.juego = this.juego;
+  }
+
+  onResize() {
+    const { width, height } = this.scale;
+    this.service.phaser.screen.w = width;
+    this.service.phaser.screen.h = height;
+
+    const baseWidth = 800;
+    const baseHeight = 600;
+    this.service.escala = Math.min(width / baseWidth, height / baseHeight);
+
+    this.cameras.main.setViewport(0, 0, width, height);
+    this.cameras.main.centerOn(0, 0);
+
+    if (this.uiCamera) {
+      this.uiCamera.setViewport(0, 0, width, height);
+    }
+
+    this.scale.updateBounds();
+
     this.setBackground();
     this.setInput();
 
-    // botones(this, speech);
-
-    this.juego = new IngTruco.Regla.Juego(this.service);
-
-    this.service.gameComponent.onCreate();
-
+    if (this.juego) {
+      this.juego.jugadores.forEach(j => j.render());
+    }
   }
-  // update() { console.log( emitter.eventNames() ); }
 
+  mesa: Phaser.GameObjects.Sprite;
+  shadow: Phaser.GameObjects.Sprite;
   setBackground() {
-    const mesa = this.add.sprite(0, 0, 'wood');
-    mesa.setScale(this.service.escala);
-    mesa.setDepth(-5);
-    const shadow = this.add.sprite(0, 0, 'shadow');
-    shadow.setScale(this.service.escala);
-    shadow.setDepth(-1);
+    if (!this.mesa) {
+      this.mesa = this.add.sprite(0, 0, 'wood');
+      this.mesa.setDepth(-5);
+    }
+    this.mesa.setScale(this.service.escala);
+
+    if (!this.shadow) {
+      this.shadow = this.add.sprite(0, 0, 'shadow');
+      this.shadow.setDepth(-1);
+    }
+    this.shadow.setScale(this.service.escala);
   }
+
+  zoomRect: Phaser.GameObjects.Rectangle;
   setInput() {
-    const zoom = this.add.rectangle(0, 0, this.screen.w * 2, this.screen.h);
-    zoom.setInteractive();
-    zoom.setDepth(-1);
+    if (!this.zoomRect) {
+      this.zoomRect = this.add.rectangle(0, 0, this.screen.w * 2, this.screen.h);
+      this.zoomRect.setInteractive();
+      this.zoomRect.setDepth(-1);
+      this.setupInputEvents(this.zoomRect);
+    } else {
+      this.zoomRect.setSize(this.screen.w * 2, this.screen.h);
+    }
+  }
+
+  setupInputEvents(zoom: Phaser.GameObjects.Rectangle) {
 
     let pointers: Phaser.Input.Pointer[] = [];
     this.input.addPointer(1);
@@ -79,6 +125,9 @@ export class Main extends Phaser.Scene {
             pointer.downX - pointer.x,
             pointer.downY - pointer.y
           );
+          // Scale delta by camera zoom to maintain 1:1 movement
+          delta.x /= this.cameras.main.zoom;
+          delta.y /= this.cameras.main.zoom;
           if (!this.axis) {
             this.dragStart(delta);
           } else {
@@ -131,8 +180,6 @@ export class Main extends Phaser.Scene {
     });
 
     this.input.dragDistanceThreshold = 10;
-    // this.input.dragTimeThreshold = 500;
-    // this.input.topOnly = false;
   }
 
   center: Phaser.Math.Vector2;
@@ -237,58 +284,4 @@ export class Main extends Phaser.Scene {
     } else { delta.y = 0; }
   }
 
-}
-
-function botones(scene: Phaser.Scene, speech: Phaser.Sound.HTML5AudioSound | Phaser.Sound.WebAudioSound) {
-  new boton(scene, 0, -180, 'flor', speech);
-  new boton(scene, 0, -160, 'envido', speech);
-  new boton(scene, 0, -140, 'flor envido', speech);
-  new boton(scene, 0, -120, 'truco', speech);
-  new boton(scene, 0, -100, 'retruco', speech);
-  new boton(scene, 0, -80, 'vale 9', speech);
-  new boton(scene, 0, -60, 'vale juego', speech);
-  new boton(scene, 0, 60, '3', speech);
-  new boton(scene, 0, 80, '4', speech);
-  new boton(scene, 0, 100, '5', speech);
-  new boton(scene, 0, 120, '6', speech);
-  new boton(scene, 0, 140, '7', speech);
-  new boton(scene, 0, 160, '8', speech);
-  new boton(scene, 0, 180, '9', speech);
-  new boton(scene, 0, 200, '10', speech);
-  new boton(scene, 0, 220, 'flor truco', speech);
-  new boton(scene, 0, 240, 'quiero', speech);
-  new boton(scene, 0, 260, 'flor quiero', speech);
-  new boton(scene, 0, 280, 'no quiero', speech);
-  new boton(scene, 0, 300, 'flor no quiero', speech);
-}
-
-class boton extends Phaser.GameObjects.Text {
-  constructor(scene: Phaser.Scene, x: number, y: number, text: string, private speech: Phaser.Sound.HTML5AudioSound | Phaser.Sound.WebAudioSound) {
-    super(scene, x, y, text, undefined);
-    this.setInteractive()
-    this.on('pointerdown', () => { this.play(text); });
-    scene.children.add(this);
-  }
-  play(texto: string) {
-    switch (texto) {
-      case 'flor envido':
-        this.speech.play('flor ');
-        this.speech.once('complete', () => { this.speech.play('envido'); });
-        break;
-      case 'flor truco':
-        this.speech.play('flor ');
-        this.speech.once('complete', () => { this.speech.play('truco'); });
-        break;
-      case 'flor quiero':
-        this.speech.play('flor ');
-        this.speech.once('complete', () => { this.speech.play('quiero'); });
-        break;
-      case 'flor no quiero':
-        this.speech.play('flor ');
-        this.speech.once('complete', () => { this.speech.play('no quiero'); });
-        break;
-
-      default: this.speech.play(texto); break;
-    }
-  }
 }

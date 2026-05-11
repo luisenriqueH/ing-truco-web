@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ing-Truco | Agent Dashboard</title>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: #141418;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --success: #22c55e;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #27272a;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        aside {
+            width: 280px;
+            background-color: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        aside.collapsed {
+            width: 60px;
+            padding: 2rem 0.5rem;
+        }
+
+        aside.collapsed .logo, 
+        aside.collapsed .nav-item span,
+        aside.collapsed div[style*="background"] {
+            display: none;
+        }
+
+        aside.collapsed .nav-item {
+            text-align: center;
+            padding: 0.75rem 0;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            right: -12px;
+            top: 2rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            box-shadow: 0 4px 10px var(--primary-glow);
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-item {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 3rem;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--text-dim);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .version-number {
+            font-size: 3rem;
+            font-weight: 800;
+            margin: 1rem 0;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--primary-glow);
+        }
+
+        .btn:disabled {
+            background: var(--border);
+            color: var(--text-dim);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .review-list {
+            list-style: none;
+            padding: 0;
+            margin: 1.5rem 0;
+        }
+
+        .review-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-dim);
+            font-size: 0.9375rem;
+        }
+
+        .check-icon {
+            color: var(--success);
+        }
+
+        #agent-console {
+            background: #000;
+            font-family: 'Fira Code', monospace;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: #10b981;
+            margin-top: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <button class="toggle-btn" id="btn-toggle">‹</button>
+        <div class="logo">ANTIGRAVITY</div>
+        <nav style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <a href="#" class="nav-item active"><span>Dashboard</span></a>
+            <a href="../TODO.md" class="nav-item"><span>Roadmap</span></a>
+            <a href="../TECHNICAL_OVERVIEW.md" class="nav-item"><span>System Docs</span></a>
+        </nav>
+        <div style="margin-top: auto; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+            <div style="font-size: 0.75rem; color: var(--text-dim);">SYSTEM AGENT</div>
+            <div style="font-weight: 600;">Ing-Truco Developer</div>
+        </div>
+    </aside>
+
+    <main>
+        <div class="header">
+            <div>
+                <h1 style="margin: 0; font-size: 2rem;">Control de Versiones</h1>
+                <p style="color: var(--text-dim); margin: 0.5rem 0 0;">Gestión automatizada del ciclo de vida del proyecto.</p>
+            </div>
+            <div class="status-badge">AGENTE EN LÍNEA</div>
+        </div>
+
+        <div class="grid">
+            <!-- Version Card -->
+            <div class="card">
+                <h3>Versión Desplegada</h3>
+                <div class="version-number" id="current-version">1.0.1</div>
+                <p style="color: var(--text-dim);">Lista para producción en <code>start/</code>.</p>
+                
+                <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 0.5rem;">
+                    <h3>Servidor de Juego</h3>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                        <div id="server-status" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444;"></div>
+                        <span id="server-text" style="font-size: 0.875rem; color: var(--text-dim);">Offline</span>
+                    </div>
+                    <button class="btn btn-secondary" id="btn-server" style="margin-top: 1rem;">Lanzar Servidor</button>
+                    <button class="btn" id="btn-server-stop" style="margin-top: 0.5rem; background: #ef4444; color: white; display: none;">Detener Servidor</button>
+                </div>
+            </div>
+
+            <!-- Build Action Card -->
+            <div class="card">
+                <h3>Acciones del Agente</h3>
+                <div id="review-area">
+                    <p>Define la versión y comienza la auditoría.</p>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 0.5rem;">VERSIÓN OBJETIVO</label>
+                        <input type="text" id="target-version" value="1.0.2" style="background: var(--bg); border: 1px solid var(--border); color: white; padding: 0.75rem; border-radius: 0.5rem; width: calc(100% - 1.5rem); font-family: 'Fira Code', monospace; font-size: 1.2rem; font-weight: 700;">
+                    </div>
+                    <button class="btn" id="btn-review">Iniciar Revisión Pre-Build</button>
+                    <div id="agent-console">Awaiting commands...</div>
+                </div>
+                
+                <div id="compile-area" style="display: none; margin-top: 2rem;">
+                    <!-- Fase de Compilación -->
+                    <div id="compilation-trigger">
+                        <div style="background: rgba(99, 102, 241, 0.1); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--primary);">
+                            <div style="font-weight: 600; color: var(--primary);">Auditoría Aprobada</div>
+                            <p style="font-size: 0.875rem; color: var(--text-dim); margin: 0.5rem 0 0;">Todos los puntos de control están listos para generar el bundle.</p>
+                        </div>
+                        <button class="btn" style="background: var(--success);" id="btn-compile">Ejecutar Compilación Regular</button>
+                        <button class="btn btn-secondary" id="btn-reset">Cancelar Proceso</button>
+                    </div>
+
+                    <!-- Fase de Éxito -->
+                    <div id="success-area" style="display: none;">
+                        <div style="background: rgba(34, 197, 94, 0.2); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--success); text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚀</div>
+                            <div style="font-weight: 800; color: var(--success); font-size: 1.2rem;">COMPILACIÓN EXITOSA</div>
+                            <p style="font-size: 0.875rem; color: var(--text-dim); margin: 0.5rem 0 0;">Versión <span id="deployed-version-badge">1.0.2</span> desplegada.</p>
+                        </div>
+                        <button class="btn btn-secondary" id="btn-next-cycle">Iniciar Siguiente Ciclo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Force reload of agent_scripts.js logic to avoid browser cache
+        const script = document.createElement('script');
+        script.src = 'agent_scripts.js?t=' + Date.now();
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>
