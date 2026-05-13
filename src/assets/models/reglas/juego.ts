@@ -301,9 +301,10 @@ class Juego {
 
   // --- REGLAS DE VALOR ---
 
-  getValor(carta: ICarta): number {
+  getValor(carta: ICarta, ignorarTapada: boolean = false): number {
     // Si la carta está tapada (jugada boca abajo), su valor es 0 (menor a un 4)
-    if (carta.tapada) return 0;
+    // Pero permitimos ignorar esto para que la IA pueda evaluar sus propias cartas
+    if (carta.tapada && !ignorarTapada) return 0;
 
     const vira = this.service.vira || this.partida.manoActual.vira;
 

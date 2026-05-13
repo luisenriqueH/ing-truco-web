@@ -204,6 +204,13 @@ class Jugador implements IJugador {
         this.onTrucoPrompt(data);
       }
     });
+
+    // Escuchar evento de Envido
+    this.service.phaser.emitter.on('envidoCantado', (data: any) => {
+      if (this.tipo === 'humano' && data.jugador.pareja.indice !== this.pareja.indice) {
+        this.onEnvidoPrompt(data);
+      }
+    });
   }
 
   render() {
@@ -420,7 +427,7 @@ class Jugador implements IJugador {
     return new Promise((resolve) => {
       // this.tomar(carta);
       // const dx = (Math.random() - 0.5) * 5;
-      const dy = (this.mesa.cartas.length - 1) * 40;
+      const dy = (this.mesa.cartas.length - 1) * 1 * this.service.escala;
       const vector = this.setAngle(new Phaser.Math.Vector2(0, dy));
       this.mano.remove(carta);
       this.dragAuto(carta, { x: vector.x, y: vector.y }, this.mesa.zone)
@@ -521,6 +528,19 @@ class Jugador implements IJugador {
     // Para el Truco, usaremos el mismo patrón:
     const nivelNombre = this.juego.truco.getNombreNivel(data.nivel);
     const mensaje = `${data.jugador.nombre} cantó ${nivelNombre.toUpperCase()}. ¿Aceptas?`;
+
+    this.service.phaser.emitter.emit('mostrarPregunta', {
+      texto: mensaje,
+      callback: (acepta: boolean) => {
+        const respuesta = acepta ? 'quiero' : 'no quiero';
+        this.hablar(respuesta);
+      }
+    });
+  }
+
+  onEnvidoPrompt(data: { jugador: any, puntos: number }) {
+    console.log(`%c [PROMPT] Mostrando overlay de Envido al Humano `, 'color: #ffff00;');
+    const mensaje = `${data.jugador.nombre} cantó ENVIDO. ¿Aceptas?`;
 
     this.service.phaser.emitter.emit('mostrarPregunta', {
       texto: mensaje,

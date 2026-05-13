@@ -5,6 +5,7 @@ import { Main } from '../game/scenes/main';
 import { GUIScene } from '../game/scenes/gui';
 import { TestAIScene } from '../game/scenes/test_ai';
 import { IJugador } from '../models/jugadores';
+import { CreditService } from './credit.service';
 
 @Injectable({
   providedIn: 'root'
@@ -32,7 +33,7 @@ export class GameService {
     emitter: null
   };
 
-  constructor() { }
+  constructor(public credit: CreditService) { }
 
   initGame(containerId: string) {
     this.phaser.emitter = new Phaser.Events.EventEmitter();
@@ -55,10 +56,10 @@ export class GameService {
       this.game.scene.add('main', Main, false);
       this.game.scene.add('test_ai', TestAIScene, false);
       this.game.scene.add('gui', GUIScene, false);
-      
+
       const startScene = this.testMode ? 'test_ai' : 'main';
       console.log('Starting scene:', startScene);
-      
+
       this.game.scene.start(startScene, { service: this });
       this.game.scene.start('gui', { service: this });
     });

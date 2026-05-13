@@ -133,6 +133,12 @@ export class Envido {
     } else if (t === 'envido') {
       this.juego.envidoEstado = 'CANTADO';
       this.juego.equipoQueCantoEnvido = jugador.pareja.indice;
+      
+      // Emitir evento para que los demás reaccionen (Humano e IA)
+      this.juego.service.phaser.emitter.emit('envidoCantado', { 
+        jugador, 
+        puntos: this.calcularPuntos(jugador) 
+      });
     }
   }
 

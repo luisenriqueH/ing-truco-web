@@ -16,12 +16,12 @@ class Mesa extends Cartas {
 
   setZone(): void {
     const area = this.jugador.service.area * this.service.escala;
-    const distancia = (2 - 2 / 4) * area;
+    const distancia = 2.5 * area;
     const fromCenter = new Phaser.Math.Vector2(0, distancia);
     let size = new Phaser.Math.Vector2(4 * area / 3, 4 * area / 3);
 
     let spot = this.jugador.setAngle(fromCenter.clone());
-    
+
     if (!this.zone) {
       const zone = new Zone(this.jugador.main, spot.x, spot.y, size.x, size.y, 0xffffff, 0.2);
       zone.setRotation(this.jugador.rotation);

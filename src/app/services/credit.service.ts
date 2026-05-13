@@ -29,6 +29,23 @@ export class CreditService {
     return this.coins;
   }
 
+  addCoins(amount: number) {
+    this.coins += amount;
+    this.saveState();
+    console.log(`[CreditService] Added ${amount} coins. New balance: ${this.coins}`);
+  }
+
+  deductCoins(amount: number): boolean {
+    if (this.coins >= amount) {
+      this.coins -= amount;
+      this.saveState();
+      console.log(`[CreditService] Deducted ${amount} coins. New balance: ${this.coins}`);
+      return true;
+    }
+    console.warn(`[CreditService] Insufficient coins to deduct ${amount}. Balance: ${this.coins}`);
+    return false;
+  }
+
   processDailyGrant() {
     const startTime = performance.now();
     const lastGrant = localStorage.getItem(this.LAST_GRANT_KEY);
@@ -38,7 +55,7 @@ export class CreditService {
       this.coins += this.DAILY_GRANT_AMOUNT;
       localStorage.setItem(this.LAST_GRANT_KEY, now.toString());
       this.saveState();
-      
+
       const endTime = performance.now();
       console.log(`[CreditService] Daily grant awarded in ${(endTime - startTime).toFixed(4)}ms`);
       return true;
@@ -46,18 +63,18 @@ export class CreditService {
     return false;
   }
 
-  buyCoins(pkg: 'pack_1' | 'pack_2' | 'pack_3') {
+  buyCoins(pkg: '10CR' | '100CR' | '1000CR') {
     const config = {
-      'pack_1': { amt: 10, prc: '1.00', name: 'Pack de Iniciación' },
-      'pack_2': { amt: 100, prc: '5.00', name: 'Pack Guerrero' },
-      'pack_3': { amt: 1000, prc: '20.00', name: 'Pack Legendario' }
+      '10CR': { amt: 10, prc: '1.00', name: 'Pack de Iniciación' },
+      '100CR': { amt: 100, prc: '5.00', name: 'Pack Guerrero' },
+      '1000CR': { amt: 1000, prc: '20.00', name: 'Pack Legendario' }
     };
 
     const selected = config[pkg];
     const txid = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    
+
     // Redirect to Koningo Gateway
-    const baseUrl = 'https://koningo.com/beta/gravedad/pay/paypal.php';
+    const baseUrl = 'https://koningo.com/tools/pay/paypal.php';
     const params = new URLSearchParams({
       gid: 'truco_ve',
       pkg: pkg,

@@ -335,6 +335,111 @@ export class GUIScene extends Phaser.Scene {
         .log-content {
           flex: 1;
         }
+
+        /* GAME OVER OVERLAY */
+        .game-over-overlay {
+          position: fixed;
+          top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(15px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          animation: fadeIn 0.5s ease;
+          pointer-events: auto;
+        }
+
+        .game-over-card {
+          background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(10, 10, 10, 0.95) 100%);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-radius: 32px;
+          padding: 60px;
+          text-align: center;
+          max-width: 500px;
+          width: 90%;
+          box-shadow: 0 30px 100px rgba(0,0,0,0.9), inset 0 0 20px rgba(255,255,255,0.05);
+          transform: scale(0.9);
+          animation: gameOverScaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes gameOverScaleUp { 
+          from { transform: scale(0.7); opacity: 0; } 
+          to { transform: scale(1); opacity: 1; } 
+        }
+
+        .game-over-title {
+          color: #ffaa00;
+          font-size: 42px;
+          font-weight: 900;
+          margin-bottom: 10px;
+          text-transform: uppercase;
+          letter-spacing: 4px;
+          text-shadow: 0 0 20px rgba(255, 170, 0, 0.4);
+        }
+
+        .game-over-subtitle {
+          color: #eee;
+          font-size: 24px;
+          font-weight: 600;
+          margin-bottom: 40px;
+        }
+
+        .final-score-container {
+          display: flex;
+          justify-content: center;
+          gap: 30px;
+          margin-bottom: 50px;
+        }
+
+        .final-score-item {
+          background: rgba(255,255,255,0.05);
+          padding: 20px 30px;
+          border-radius: 20px;
+          min-width: 120px;
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .final-score-item.winner {
+          background: rgba(74, 144, 226, 0.2);
+          border-color: rgba(74, 144, 226, 0.4);
+          box-shadow: 0 0 15px rgba(74, 144, 226, 0.2);
+        }
+
+        .final-score-label {
+          color: #888;
+          font-size: 12px;
+          font-weight: 900;
+          text-transform: uppercase;
+          margin-bottom: 5px;
+        }
+
+        .final-score-value {
+          color: white;
+          font-size: 36px;
+          font-weight: 800;
+        }
+
+        .btn-home {
+          background: #ffaa00;
+          color: #000;
+          padding: 18px 40px;
+          border-radius: 16px;
+          font-size: 18px;
+          font-weight: 900;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.3s;
+          border: none;
+          box-shadow: 0 10px 30px rgba(255, 170, 0, 0.3);
+          width: 100%;
+        }
+
+        .btn-home:hover {
+          transform: translateY(-5px);
+          background: #ffbb33;
+          box-shadow: 0 15px 40px rgba(255, 170, 0, 0.4);
+        }
       `;
       document.head.appendChild(style);
     }
@@ -564,6 +669,10 @@ export class GUIScene extends Phaser.Scene {
     this.service.phaser.emitter.on('hablar', (data: any) => this.addLogHTML(data, logPanel));
     this.service.phaser.emitter.on('cardPlayed', (data: any) => this.addCardPlayLogHTML(data, logPanel));
 
+    this.service.phaser.emitter.on('gameOver', (data: { ganador: number, puntos: number[] }) => {
+      this.mostrarGameOver(data.ganador, data.puntos);
+    });
+
     // Inicializar
     updateHeader();
 
@@ -703,5 +812,47 @@ export class GUIScene extends Phaser.Scene {
     if (elNosotros) elNosotros.innerText = `${p1} / 12`;
     if (elEllos) elEllos.innerText = `${p2} / 12`;
     if (elBet) elBet.innerText = `${valorMano} | ${r1} - ${r2}`;
+  }
+
+  mostrarGameOver(ganadorIdx: number, puntos: number[]) {
+    const REWARD_AMOUNT = 5;
+    const overlay = document.createElement('div');
+    overlay.className = 'game-over-overlay';
+
+    const esNosotrosGanador = ganadorIdx === 0;
+    const titulo = esNosotrosGanador ? '¡VICTORIA!' : 'FIN DEL JUEGO';
+    const subtitulo = esNosotrosGanador ? `¡Han ganado la partida! (+${REWARD_AMOUNT} CR)` : 'El otro equipo ha ganado.';
+
+    if (esNosotrosGanador) {
+      this.service.credit.addCoins(REWARD_AMOUNT);
+    }
+
+    overlay.innerHTML = `
+      <div class="game-over-card">
+        <div class="game-over-title">${titulo}</div>
+        <div class="game-over-subtitle">${subtitulo}</div>
+        
+        <div class="final-score-container">
+          <div class="final-score-item ${esNosotrosGanador ? 'winner' : ''}">
+            <div class="final-score-label">NOSOTROS</div>
+            <div class="final-score-value">${puntos[0]}</div>
+          </div>
+          <div class="final-score-item ${!esNosotrosGanador ? 'winner' : ''}">
+            <div class="final-score-label">ELLOS</div>
+            <div class="final-score-value">${puntos[1]}</div>
+          </div>
+        </div>
+
+        <button class="btn-home" id="btn-volver-home">VOLVER AL INICIO</button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const btnHome = overlay.querySelector('#btn-volver-home') as HTMLElement;
+    btnHome.onclick = () => {
+      window.location.href = '/#/home';
+      window.location.reload();
+    };
   }
 }

@@ -51,6 +51,34 @@ export class IA_Jugador extends Jugador {
         await this.decidirResponderTruco();
       }
     });
+
+    // Reaccionar al Envido cantado por el rival
+    this.service.phaser.emitter.on('envidoCantado', async (data: any) => {
+      if (this.juego.envidoEstado === 'CANTADO' && data.jugador.pareja.indice !== this.pareja.indice) {
+        await this.decidirResponderEnvido();
+      }
+    });
+  }
+
+  async decidirResponderEnvido(): Promise<void> {
+    const delay = (this.personaje.razonamiento / 10) * 1500 + 500;
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    // Si ya no está en estado CANTADO (alguien respondió), salimos
+    if (this.juego.envidoEstado !== 'CANTADO') return;
+
+    const pts = this.juego.envido.calcularPuntos(this);
+    let respuesta = 'no quiero';
+
+    // Lógica simple: aceptar con 25 o más
+    if (pts >= 25) {
+      respuesta = 'quiero';
+    } else if (this.personaje.estilo.includes('Arriesgado') && pts >= 20) {
+      respuesta = 'quiero';
+    }
+
+    console.log(`%c [IA] ${this.nombre} decide responder al Envido: ${respuesta.toUpperCase()} (${pts} pts) `, 'color: #ffaa00;');
+    await this.hablar(respuesta);
   }
 
   async decidirResponderTruco(): Promise<void> {
@@ -125,20 +153,19 @@ export class IA_Jugador extends Jugador {
         }
 
         // FASE 2: Estrategia Táctica (Nivel 2)
-        const cartasMano = (this.enMano as ICarta[]).sort((a, b) => this.juego.getValor(a) - this.juego.getValor(b));
+        const cartasMano = (this.enMano as ICarta[]).sort((a, b) => this.juego.getValor(a, true) - this.juego.getValor(b, true));
         
-        // 1. Ver qué es lo más alto que hay en la mesa ahora mismo
+        // 1. Ver qué es lo más alto que hay en la mesa EN ESTA RONDA
         let cartaMasAltaEnMesa: ICarta | null = null;
         let valorMasAltoEnMesa = -1;
 
-        this.juego.jugadores.forEach(j => {
-          const ultimaCarta = j.mesa.cartas[j.mesa.cartas.length - 1] as ICarta;
-          if (ultimaCarta) {
-            const v = this.juego.getValor(ultimaCarta);
-            if (v > valorMasAltoEnMesa) {
-              valorMasAltoEnMesa = v;
-              cartaMasAltaEnMesa = ultimaCarta;
-            }
+        const jugadasEstaRonda = this.juego.partida.manoActual.cartasJugadas;
+        
+        jugadasEstaRonda.forEach(jugada => {
+          const v = this.juego.getValor(jugada.carta);
+          if (v > valorMasAltoEnMesa) {
+            valorMasAltoEnMesa = v;
+            cartaMasAltaEnMesa = jugada.carta;
           }
         });
 
@@ -151,7 +178,7 @@ export class IA_Jugador extends Jugador {
           console.log(`%c ${this.nombre} es mano y abre con su carta más baja `, 'color: #888;');
         } else {
           // Intento "matar" lo que hay en mesa con lo mínimo necesario
-          const ganadoras = cartasMano.filter(c => this.juego.getValor(c) > valorMasAltoEnMesa);
+          const ganadoras = cartasMano.filter(c => this.juego.getValor(c, true) > valorMasAltoEnMesa);
           
           if (ganadoras.length > 0) {
             // Juego la más baja de las que ganan (siempre boca arriba)

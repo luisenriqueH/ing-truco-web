@@ -135,7 +135,7 @@ export class Mano {
         const carta = this.juego.baraja.sacar(cardIndex);
         if (carta) {
           carta.tapar(); // Tapar antes de que empiece a volar
-          const dy = i * 20 * this.service.escala;
+          const dy = i * 2 * this.service.escala;
           const vector = jugador.setAngle(new Phaser.Math.Vector2(0, dy));
           await jugador.dragAuto(carta, { x: vector.x, y: vector.y }, jugador.mesa.zone);
         }
