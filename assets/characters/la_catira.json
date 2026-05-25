@@ -1,0 +1,13 @@
+{
+  "nombre": "La Catira",
+  "estilo": "Impulsiva y rápida",
+  "partidasJugadas": 0,
+  "partidasGanadas": 0,
+  "xp": 0,
+  "stats": {
+    "agresividad": 0.9,
+    "paciencia": 0.2,
+    "bluff": 0.6,
+    "inteligencia": 0.4
+  }
+}

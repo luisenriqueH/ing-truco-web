@@ -115,6 +115,61 @@ async function startServer() {
       return;
     }
 
+    if (filePath === '/api/characters' && req.method === 'GET') {
+      const dirPath = path.join(__dirname, 'assets/characters');
+      try {
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+        const files = fs.readdirSync(dirPath);
+        const characters = [];
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            const data = fs.readFileSync(path.join(dirPath, file), 'utf8');
+            characters.push(JSON.parse(data));
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(characters));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (filePath === '/api/characters/save' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          const charData = JSON.parse(body);
+          if (!charData.nombre) {
+            throw new Error('Nombre del personaje es requerido');
+          }
+          const normName = charData.nombre.toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/ñ/g, 'n')
+            .replace(/[^a-z0-9_]/g, '_')
+            .replace(/__+/g, '_');
+          const fileName = `${normName}.json`;
+          const dirPath = path.join(__dirname, 'assets/characters');
+          if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+          }
+          fs.writeFileSync(path.join(dirPath, fileName), JSON.stringify(charData, null, 2));
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, file: fileName }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+      return;
+    }
+
     // Static Routes
     if (filePath === '/dashboard') {
       filePath = '/tools/dashboard.html';

@@ -1,0 +1,13 @@
+{
+  "nombre": "Don Juan",
+  "estilo": "Estratega y calmado",
+  "partidasJugadas": 2,
+  "partidasGanadas": 0,
+  "xp": 20,
+  "stats": {
+    "agresividad": 0.39,
+    "paciencia": 0.81,
+    "bluff": 0.3,
+    "inteligencia": 0.8200000000000001
+  }
+}

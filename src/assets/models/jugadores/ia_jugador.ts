@@ -4,19 +4,83 @@ import { ICarta } from "../cartas/carta";
 
 export interface PersonajeIA {
   nombre: string;
-  razonamiento: number; // 1 a 10
   estilo: string;
+  partidasJugadas: number;
+  partidasGanadas: number;
+  xp: number;
+  stats: {
+    agresividad: number;
+    paciencia: number;
+    bluff: number;
+    inteligencia: number;
+  };
 }
 
 export const CATALOGO_IA: PersonajeIA[] = [
-  { nombre: 'Don Juan', razonamiento: 8, estilo: 'Estratega y calmado' },
-  { nombre: 'La Catira', razonamiento: 3, estilo: 'Impulsiva y rápida' },
-  { nombre: 'El Chamo', razonamiento: 5, estilo: 'Equilibrado' },
-  { nombre: 'Doña María', razonamiento: 10, estilo: 'Calculadora y lenta' },
-  { nombre: 'El General', razonamiento: 7, estilo: 'Autoritario' },
-  { nombre: 'La Flaca', razonamiento: 2, estilo: 'Muy impaciente' },
-  { nombre: 'El Gocho', razonamiento: 9, estilo: 'Paciente y analítico' },
-  { nombre: 'El Catire', razonamiento: 4, estilo: 'Arriesgado' }
+  {
+    nombre: "Don Juan",
+    estilo: "Estratega y calmado",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.4, paciencia: 0.8, bluff: 0.3, inteligencia: 0.8 }
+  },
+  {
+    nombre: "Doña María",
+    estilo: "Calculadora y lenta",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.2, paciencia: 0.9, bluff: 0.2, inteligencia: 0.9 }
+  },
+  {
+    nombre: "El Catire",
+    estilo: "Arriesgado",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.7, paciencia: 0.3, bluff: 0.8, inteligencia: 0.5 }
+  },
+  {
+    nombre: "El Chamo",
+    estilo: "Equilibrado",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.5, paciencia: 0.5, bluff: 0.4, inteligencia: 0.6 }
+  },
+  {
+    nombre: "El General",
+    estilo: "Autoritario",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.8, paciencia: 0.4, bluff: 0.5, inteligencia: 0.7 }
+  },
+  {
+    nombre: "El Gocho",
+    estilo: "Paciente y analítico",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.3, paciencia: 0.9, bluff: 0.2, inteligencia: 0.8 }
+  },
+  {
+    nombre: "La Catira",
+    estilo: "Impulsiva y rápida",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.9, paciencia: 0.2, bluff: 0.6, inteligencia: 0.4 }
+  },
+  {
+    nombre: "La Flaca",
+    estilo: "Muy impaciente",
+    partidasJugadas: 0,
+    partidasGanadas: 0,
+    xp: 0,
+    stats: { agresividad: 0.8, paciencia: 0.1, bluff: 0.7, inteligencia: 0.3 }
+  }
 ];
 
 export class IA_Jugador extends Jugador {
@@ -37,93 +101,161 @@ export class IA_Jugador extends Jugador {
     // Reaccionar al fin de la mano: Solo el repartidor inicia el conteo
     this.service.phaser.emitter.on('manoFinished', async () => {
       if (this.juego.dealer === this) {
-        const delay = (this.personaje.razonamiento / 10) * 3000 + 1000;
+        // Si la partida ya terminó, no contar puntos
+        const p = this.juego.partida;
+        if (p.puntos[0] >= p.limite || p.puntos[1] >= p.limite) {
+          console.log(`%c [IA-DEALER] Partida terminada. No se inicia el conteo. `, 'color: #ff4444;');
+          return;
+        }
+
+        const delay = (this.personaje.stats.inteligencia) * 3000 + 1000;
         console.log(`%c ${this.nombre} (IA Dealer) esperará ${Math.round(delay)}ms para iniciar el conteo... `, 'color: #888;');
         await new Promise(resolve => setTimeout(resolve, delay));
+
+        // Doble chequeo tras la espera
+        if (p.puntos[0] >= p.limite || p.puntos[1] >= p.limite) return;
         this.juego.contarPuntos();
       }
     });
 
-    // Reaccionar al Truco cantado por el rival
-    this.service.phaser.emitter.on('trucoCantado', async (data: any) => {
-      // Solo responder si el Truco fue cantado por el EQUIPO CONTRARIO
-      if (this.juego.truco.esperandoRespuesta && data.jugador.pareja.indice !== this.pareja.indice) {
-        await this.decidirResponderTruco();
-      }
-    });
-
-    // Reaccionar al Envido cantado por el rival
-    this.service.phaser.emitter.on('envidoCantado', async (data: any) => {
-      if (this.juego.envidoEstado === 'CANTADO' && data.jugador.pareja.indice !== this.pareja.indice) {
-        await this.decidirResponderEnvido();
-      }
-    });
   }
 
-  async decidirResponderEnvido(): Promise<void> {
-    const delay = (this.personaje.razonamiento / 10) * 1500 + 500;
-    await new Promise(resolve => setTimeout(resolve, delay));
+  calcularOpinionEnvido(): string {
+    const pts = this.juego.envido.calcularPuntos(this);
+    const agresividad = this.personaje.stats.agresividad;
+    const bluff = this.personaje.stats.bluff;
 
-    // Si ya no está en estado CANTADO (alguien respondió), salimos
-    if (this.juego.envidoEstado !== 'CANTADO') return;
+    // Umbral de decisión adaptado a las estadísticas
+    const threshold = 25 - (agresividad * 4) - (bluff * 3);
+    const respuesta = pts >= threshold ? 'quiero' : 'no quiero';
+
+    console.log(`%c [IA-OPINION-ENVIDO] ${this.nombre}: ${respuesta.toUpperCase()} (${pts} pts, threshold: ${threshold.toFixed(1)}) `, 'color: #ffaa00;');
+    return respuesta;
+  }
+
+  calcularOpinionTruco(): string {
+    const cards = this.enMano;
+    const hasPiece = cards.some(c => this.juego.esPieza(c));
+    const maxVal = cards.length > 0 ? Math.max(...cards.map(c => this.juego.getValor(c, true))) : 0;
+    const agresividad = this.personaje.stats.agresividad;
+    const bluff = this.personaje.stats.bluff;
+    const inteligencia = this.personaje.stats.inteligencia;
+
+    let quiero = false;
+
+    if (hasPiece) {
+      quiero = true; // Con pieza siempre queremos
+    } else if (maxVal >= 40) { // Un 3, 2 o mejor
+      quiero = true;
+    } else {
+      // Si no tiene buenas cartas, depende de agresividad, bluff, y nivel
+      const nivel = this.juego.truco.nivel;
+      let prob = (agresividad * 0.3) + (bluff * 0.3);
+      if (nivel > 3) {
+        prob *= (1 - inteligencia); // Más prudentes en Retruco o superior
+      }
+      quiero = Math.random() < prob;
+    }
+
+    const respuesta = quiero ? 'quiero' : 'no quiero';
+    console.log(`%c [IA-OPINION-TRUCO] ${this.nombre}: ${respuesta.toUpperCase()} `, 'color: #ffaa00;');
+    return respuesta;
+  }
+
+  // Lógica para cantar Envido proactivamente
+  async decidirCantarEnvidoProactivo(): Promise<string | null> {
+    const mano = this.juego.partida.manoActual;
+    // Solo en primera ronda, si la mano está activa y si no se ha cantado envido aún
+    if (!this.juego.manoEnCurso) return null;
+    if (mano.rondaActual !== 0 || this.juego.envidoEstado !== 'NADA') return null;
 
     const pts = this.juego.envido.calcularPuntos(this);
-    let respuesta = 'no quiero';
+    const agresividad = this.personaje.stats.agresividad;
+    const bluff = this.personaje.stats.bluff;
 
-    // Lógica simple: aceptar con 25 o más
-    if (pts >= 25) {
-      respuesta = 'quiero';
-    } else if (this.personaje.estilo.includes('Arriesgado') && pts >= 20) {
-      respuesta = 'quiero';
+    // Si tiene muy buenos puntos, canta envido
+    if (pts >= 26) {
+      return 'envido';
+    }
+    // Si tiene puntos decentes (20-25), canta según agresividad
+    if (pts >= 20 && Math.random() < agresividad) {
+      return 'envido';
+    }
+    // Bluff: si tiene pocos puntos, pero alto bluff/agresividad
+    if (pts < 20 && Math.random() < (bluff * agresividad * 0.2)) {
+      console.log(`%c [IA-BLUFF] ${this.nombre} decide cantar Envido de farol con ${pts} pts `, 'color: #ff00ff;');
+      return 'envido';
     }
 
-    console.log(`%c [IA] ${this.nombre} decide responder al Envido: ${respuesta.toUpperCase()} (${pts} pts) `, 'color: #ffaa00;');
-    await this.hablar(respuesta);
+    return null;
   }
 
-  async decidirResponderTruco(): Promise<void> {
-    const delay = (this.personaje.razonamiento / 10) * 2000 + 1000;
-    await new Promise(resolve => setTimeout(resolve, delay));
+  // Lógica para cantar Truco proactivamente
+  async decidirCantarTrucoProactivo(): Promise<string | null> {
+    // Guardia: si la mano ya terminó, no cantar
+    if (!this.juego.manoEnCurso) return null;
 
-    // Si mientras esperábamos, alguien ya respondió, salimos
-    if (!this.juego.truco.esperandoRespuesta) return;
+    const t = this.juego.truco;
+    if (t.esperandoRespuesta) return null;
 
-    // Lógica táctica simple: 
-    // - Si tengo piezas, acepto siempre.
-    // - Si tengo buen razonamiento, acepto más.
-    // - Si soy arriesgado, acepto más.
-    const tienePiezas = this.enMano.some(c => this.juego.esPieza(c));
-    const umbral = this.personaje.estilo.includes('Arriesgado') ? 3 : 5;
-    
-    let respuesta = 'no quiero';
-    if (tienePiezas || this.personaje.razonamiento >= umbral) {
-      respuesta = 'quiero';
+    const equipoLocal = this.pareja.indice;
+    if (t.nivel >= 12 || (t.equipoConLaPalabra !== -1 && t.equipoConLaPalabra !== equipoLocal)) {
+      return null;
     }
 
-    console.log(`%c [IA] ${this.nombre} decide responder: ${respuesta.toUpperCase()} `, 'color: #ffaa00;');
-    await this.hablar(respuesta);
+    const cards = this.enMano;
+    if (cards.length === 0) return null;
+
+    const maxVal = Math.max(...cards.map(c => this.juego.getValor(c, true)));
+    const hasPiece = cards.some(c => this.juego.esPieza(c));
+    const agresividad = this.personaje.stats.agresividad;
+    const bluff = this.personaje.stats.bluff;
+    const paciencia = this.personaje.stats.paciencia;
+
+    let proximoNivel = 3;
+    if (t.nivel === 3) proximoNivel = 6;
+    else if (t.nivel === 6) proximoNivel = 9;
+    else if (t.nivel === 9) proximoNivel = 12;
+    const textoTruco = t.getNombreNivel(proximoNivel).toLowerCase();
+
+    // Con pieza o carta muy fuerte, cantamos
+    if (hasPiece || maxVal >= 60) {
+      const ronda = this.juego.partida.manoActual.rondaActual;
+      if (ronda > 0 || Math.random() < (agresividad + (1 - paciencia)) / 2) {
+        return textoTruco;
+      }
+    }
+
+    // Mano promedio aceptable
+    const avgVal = cards.reduce((acc, c) => acc + this.juego.getValor(c, true), 0) / cards.length;
+    if (avgVal >= 30 && Math.random() < agresividad * 0.4) {
+      return textoTruco;
+    }
+
+    // Bluff de Truco
+    if (Math.random() < (bluff * agresividad * 0.15)) {
+      console.log(`%c [IA-BLUFF] ${this.nombre} decide cantar ${textoTruco.toUpperCase()} de farol `, 'color: #ff00ff;');
+      return textoTruco;
+    }
+
+    return null;
   }
 
   // Lógica para recuperar la baraja de la mesa
-  // Basado en f = t / 10 (resultado en segundos)
   async decidirRecuperar() {
-    // 1. No recoger si el reparto aún no termina
     if (this.juego.onJuego) return;
 
     const cartasEnMesa = this.mesa.cartas.length;
     const cartasEnMano = this.enMano.length;
 
-    // 2. Lógica de recogida: 
-    // - Si estamos al inicio (reparto), esperamos a tener las 3.
-    // - Si es durante la partida, la IA solo recoge si no tiene nada en mano.
     if (cartasEnMesa > 0 && cartasEnMano === 0) {
       console.log(`${this.nombre} ve ${cartasEnMesa} cartas en su mesa. Decidiendo recoger...`);
-      const delay = (this.personaje.razonamiento / 10) * 1000;
+      const delay = (this.personaje.stats.inteligencia) * 1000;
       
       await new Promise<void>(resolve => setTimeout(resolve, delay));
       
       console.log(`${this.nombre} (IA) empieza a recoger sus cartas...`);
-      await this.mano.cogerMano(); // AHORA SÍ ESPERAMOS
+      await this.mano.cogerMano();
 
       // Verificar si tiene Flor y cantarla inmediatamente
       if (this.juego.envido.tieneFlor(this)) {
@@ -131,18 +263,13 @@ export class IA_Jugador extends Jugador {
       }
 
       return;
-    } else {
-      // Log para debug si se salta el paso
-      if (cartasEnMesa > 0) {
-        // console.log(`${this.nombre} no recoge: Mesa=${cartasEnMesa}, Mano=${cartasEnMano}`);
-      }
-      return Promise.resolve();
     }
   }
+
   // Lógica para elegir qué carta lanzar
   async decidirCarta(): Promise<ICarta | undefined> {
     console.log(`%c ${this.nombre} está analizando su mano... `, 'color: #aaa; font-style: italic;');
-    const delay = (this.personaje.razonamiento / 5) * 1000;
+    const delay = (this.personaje.stats.inteligencia) * 1000;
     
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -152,10 +279,8 @@ export class IA_Jugador extends Jugador {
           return;
         }
 
-        // FASE 2: Estrategia Táctica (Nivel 2)
         const cartasMano = (this.enMano as ICarta[]).sort((a, b) => this.juego.getValor(a, true) - this.juego.getValor(b, true));
         
-        // 1. Ver qué es lo más alto que hay en la mesa EN ESTA RONDA
         let cartaMasAltaEnMesa: ICarta | null = null;
         let valorMasAltoEnMesa = -1;
 
@@ -172,30 +297,41 @@ export class IA_Jugador extends Jugador {
         let cartaElegida: ICarta;
 
         if (!cartaMasAltaEnMesa) {
-          // Soy el primero en jugar: juego la más baja boca arriba
-          cartaElegida = cartasMano[0];
+          // Primero en jugar
+          if (this.personaje.stats.agresividad > 0.7 && Math.random() < 0.4) {
+            cartaElegida = cartasMano[cartasMano.length - 1]; // Juega la más alta
+          } else if (this.personaje.stats.inteligencia > 0.7 && cartasMano.length === 3) {
+            cartaElegida = cartasMano[1]; // Juega la del medio
+          } else {
+            cartaElegida = cartasMano[0]; // Juega la más baja
+          }
           cartaElegida.destapar();
-          console.log(`%c ${this.nombre} es mano y abre con su carta más baja `, 'color: #888;');
+          console.log(`%c ${this.nombre} abre la ronda con ${cartaElegida.numero} de ${cartaElegida.pinta} `, 'color: #888;');
         } else {
-          // Intento "matar" lo que hay en mesa con lo mínimo necesario
+          // Intento ganar
           const ganadoras = cartasMano.filter(c => this.juego.getValor(c, true) > valorMasAltoEnMesa);
           
           if (ganadoras.length > 0) {
-            // Juego la más baja de las que ganan (siempre boca arriba)
-            cartaElegida = ganadoras[0];
+            if (this.personaje.stats.agresividad > 0.8 && Math.random() < 0.3) {
+              cartaElegida = ganadoras[ganadoras.length - 1]; // Sobremata con la más alta
+            } else {
+              cartaElegida = ganadoras[0]; // Gana con lo mínimo
+            }
             cartaElegida.destapar();
             console.log(`%c ${this.nombre} intenta ganar la ronda con ${cartaElegida.numero} de ${cartaElegida.pinta} `, 'color: #44ff44;');
           } else {
-            // No puedo ganar: "tiro" mi carta más baja
+            // No ganamos: Quemar carta baja
             cartaElegida = cartasMano[0];
             
-            // REGLA: "La primera se ve".
             if (this.enMano.length === 3) {
-              console.log(`${this.nombre} no puede ganar, pero muestra su carta por ser primera ronda.`);
-              cartaElegida.destapar();
+              cartaElegida.destapar(); // Primera ronda siempre boca arriba
             } else {
-              console.log(`${this.nombre} no puede ganar y quema su carta.`);
-              cartaElegida.tapar();
+              // Tapar según bluff o inteligencia
+              if (this.personaje.stats.bluff > 0.5 || this.personaje.stats.inteligencia > 0.5) {
+                cartaElegida.tapar();
+              } else {
+                cartaElegida.destapar();
+              }
             }
           }
         }
@@ -208,28 +344,50 @@ export class IA_Jugador extends Jugador {
 
   async decidirMostrarEnvido(mejorActual: number): Promise<boolean> {
     const pts = this.juego.envido.calcularPuntos(this);
-    const delay = (this.personaje.razonamiento / 10) * 1000;
+    const delay = (this.personaje.stats.inteligencia) * 800 + 200;
     
     await new Promise(resolve => setTimeout(resolve, delay));
 
-    // REGLA: No perder la oportunidad de mostrar Flor o Envido > 25
     if (this.juego.envido.tieneFlor(this)) return true;
     if (pts >= 25) return true;
-
-    // Si mis puntos son menores o iguales al mejor actual, no tiene sentido mostrar
     if (pts <= mejorActual) return false;
 
-    // Si nadie ha mostrado todavía y tengo algo decente (>= 20)
     if (mejorActual === -1 && pts >= 20) return true;
 
-    // Personalidad: arriesgados muestran con menos
-    if (this.personaje.estilo.includes('Arriesgado') && pts >= 15) return true;
+    if (pts >= (20 - this.personaje.stats.agresividad * 6)) return true;
 
     return false;
   }
+
   async onContarPuntos(): Promise<void> {
-    const delay = (this.personaje.razonamiento / 10) * 500;
-    await new Promise(resolve => setTimeout(resolve, delay)); // "Piensa" antes de mostrar
+    const delay = (this.personaje.stats.inteligencia) * 500;
+    await new Promise(resolve => setTimeout(resolve, delay));
     return super.onContarPuntos();
   }
+
+  async aprender(victoria: boolean) {
+    this.personaje.partidasJugadas++;
+    if (victoria) {
+      this.personaje.partidasGanadas++;
+    }
+
+    const xpGanada = 10 + (victoria ? 20 : 0);
+    this.personaje.xp += xpGanada;
+
+    const stats = this.personaje.stats;
+    if (victoria) {
+      stats.inteligencia = Math.min(0.95, stats.inteligencia + 0.005);
+      stats.bluff = Math.min(0.95, stats.bluff + 0.005);
+      stats.agresividad = Math.min(0.95, stats.agresividad + 0.002);
+    } else {
+      stats.inteligencia = Math.min(0.95, stats.inteligencia + 0.01);
+      stats.paciencia = Math.min(0.95, stats.paciencia + 0.005);
+      stats.agresividad = Math.max(0.1, stats.agresividad - 0.005);
+    }
+
+    console.log(`%c [APRENDIZAJE] ${this.nombre} finaliza partida. Victoria: ${victoria}. XP total: ${this.personaje.xp}. Nuevas Stats:`, 'color: #00ffff;', stats);
+
+    await this.service.saveCharacter(this.personaje);
+  }
 }
+

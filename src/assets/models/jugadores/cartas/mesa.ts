@@ -32,14 +32,23 @@ class Mesa extends Cartas {
         const jugador = item.enMano || this.jugador;
         if (!jugador) return;
 
-        // Regla de Oro: Solo se puede soltar en la mesa si es el turno del jugador
+        // Regla de Oro: Solo se puede soltar en la mesa si es el turno del jugador y la mano está en curso
         // EXCEPCIÓN: Durante el reparto (onJuego = true), permitimos que caigan sin chequear turno
-        if (!this.jugador.juego.onJuego && this.jugador.juego.turnoActual !== jugador.indice) {
-          console.log(`Jugada bloqueada: No es el turno de ${jugador.nombre}`);
-          if (item.tipo === 'carta') {
-            (item as ICarta).dragend(false); // Devolver la carta a la mano
+        if (!this.jugador.juego.onJuego) {
+          if (!this.jugador.juego.manoEnCurso) {
+            console.log(`Jugada bloqueada: La mano ya no está en curso`);
+            if (item.tipo === 'carta') {
+              (item as ICarta).dragend(false); // Devolver la carta a la mano
+            }
+            return;
           }
-          return;
+          if (this.jugador.juego.turnoActual !== jugador.indice) {
+            console.log(`Jugada bloqueada: No es el turno de ${jugador.nombre}`);
+            if (item.tipo === 'carta') {
+              (item as ICarta).dragend(false); // Devolver la carta a la mano
+            }
+            return;
+          }
         }
 
         switch (item.tipo) {

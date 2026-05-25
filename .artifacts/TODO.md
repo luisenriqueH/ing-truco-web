@@ -10,14 +10,14 @@
 
 ## 🟡 Priority 2: Feedback & IA
 - [x] **IA de Recuperación**: 8 personajes con tiempos de razonamiento (`f = t/10`) para tomar la mano.
-- [ ] **Sistema de Cantos**: Validar lógica de Envido y Truco según la Vira.
+- [x] **Sistema de Cantos**: Validar lógica de Envido y Truco según la Vira.
 - [ ] **Voces IA**: Integrar frases según el personaje que canta.
 - [ ] **Partículas**: Efectos al ganar envido o truco.
 
 ## 🟠 Priority 3: Features & Social
-- [ ] **Log de Partida**: Registro de jugadas y cantos en pantalla.
+- [x] **Log de Partida**: Registro de jugadas y cantos en pantalla.
 - [ ] **Multiplayer**: Soporte para WebSockets.
-- [ ] **Skins**: Cambiar texturas de mesa y naipes.
+- [x] **Skins**: Cambiar texturas de mesa y naipes.
 
 ---
 *Actualizado por Antigravity AI.*

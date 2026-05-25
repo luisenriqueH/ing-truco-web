@@ -23,6 +23,18 @@ export class Partida {
     if (this.puntos[equipo] >= this.limite) {
       console.log(`¡Victoria para el Equipo ${equipo + 1}!`);
       this.service.phaser.emitter.emit('gameOver', { ganador: equipo, puntos: this.puntos });
+
+      // Hacer que las IAs aprendan al finalizar la partida
+      if (this.juego.jugadores) {
+        this.juego.jugadores.forEach(j => {
+          if (j.tipo === 'ia' && typeof (j as any).aprender === 'function') {
+            const victoriaIA = j.pareja.indice === equipo;
+            (j as any).aprender(victoriaIA).catch((err: any) => {
+              console.error(`Error de aprendizaje para ${j.nombre}:`, err);
+            });
+          }
+        });
+      }
     }
   }
 }

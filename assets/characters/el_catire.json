@@ -1,0 +1,13 @@
+{
+  "nombre": "El Catire",
+  "estilo": "Arriesgado",
+  "partidasJugadas": 0,
+  "partidasGanadas": 0,
+  "xp": 0,
+  "stats": {
+    "agresividad": 0.7,
+    "paciencia": 0.3,
+    "bluff": 0.8,
+    "inteligencia": 0.5
+  }
+}

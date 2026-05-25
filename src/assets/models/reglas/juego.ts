@@ -30,6 +30,15 @@ class Juego {
 
   public onJuego: boolean = false; // Flag para compatibilidad
 
+  // Lock: evita que dos instancias paralelas del turno IA corran a la vez
+  private iaEnEjecucion: Set<number> = new Set();
+
+  // Lock: bloquea el juego de cartas mientras se coordina una respuesta
+  public coordinandoRespuesta: boolean = false;
+
+  // Flag: true mientras la mano está en juego, false desde manoFinished hasta nueva mano
+  public manoEnCurso: boolean = false;
+
   // Lógica de Envido
   public envidoEstado: 'NADA' | 'CANTADO' | 'ACEPTADO' | 'RECHAZADO' = 'NADA';
   public envidoPuntos: number = 0;
@@ -48,8 +57,10 @@ class Juego {
     this.envido = new Envido(this);
     this.truco = new Truco(this);
 
-    // 2. Escuchar eventos de Truco
+    // 2. Escuchar eventos de Truco y Envido para la coordinación
     this.service.phaser.emitter.on('trucoRespondido', (data: any) => this.onTrucoRespondido(data));
+    this.service.phaser.emitter.on('trucoCantado', (data: any) => this.coordinarRespuestaTruco(data));
+    this.service.phaser.emitter.on('envidoCantado', (data: any) => this.coordinarRespuestaEnvido(data));
 
     // 3. Renderizar después
     this.render();
@@ -61,10 +72,9 @@ class Juego {
       new Jugador(this.service, this.service.data.userID || 'Tú', 0)
     ];
 
-    const pool = [...CATALOGO_IA];
+    const selected = this.service.selectedIAs && this.service.selectedIAs.length >= 3 ? this.service.selectedIAs : CATALOGO_IA.slice(0, 3);
     for (let i = 1; i <= 3; i++) {
-      const randomIdx = Math.floor(Math.random() * pool.length);
-      const personaje = pool.splice(randomIdx, 1)[0];
+      const personaje = selected[i - 1];
       jugadores.push(new IA_Jugador(this.service, personaje, i));
     }
 
@@ -83,33 +93,68 @@ class Juego {
   // --- MÉTODOS DE ACCIÓN ---
 
   async ejecutarTurnoIA(ia: IA_Jugador) {
-    // 1. Responder a Envido si está pendiente
-    if (this.envidoEstado === 'CANTADO' && ia.pareja.indice !== this.equipoQueCantoEnvido) {
-      const pts = this.envido.calcularPuntos(ia);
-      console.log(`%c IA ${ia.nombre} analiza su envido: ${pts} puntos `, 'color: #aaa;');
-
-      const delay = (ia.personaje.razonamiento / 5) * 1000;
-      await new Promise(resolve => setTimeout(resolve, delay));
-
-      if (pts >= 25) {
-        await ia.hablar('quiero');
-      } else {
-        await ia.hablar('no quiero');
-      }
+    // Lock: si ya hay una instancia corriendo para esta IA, no lanzar otra
+    if (this.iaEnEjecucion.has(ia.indice)) {
+      console.warn(`%c [TURNO-LOCK] ${ia.nombre} ya tiene un turno en ejecución, ignorando nueva llamada `, 'color: #ff4444;');
+      return;
     }
+    this.iaEnEjecucion.add(ia.indice);
 
-    // 2. Asegurarse de tener la mano recogida
-    await ia.decidirRecuperar();
-
-    // 3. Proceder a jugar
-    if (ia.enMano.length > 0) {
-      console.log(`%c ${ia.nombre} tiene sus cartas y procede a decidir... `, 'color: #44ff44;');
-      const carta = await ia.decidirCarta();
-      if (carta) {
-        this.jugarCarta(ia, carta);
+    try {
+      // 1. Esperar mientras haya cualquier canto pendiente de respuesta en el juego
+      while (this.envidoEstado === 'CANTADO' || this.truco.esperandoRespuesta || this.coordinandoRespuesta) {
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
-    } else {
-      console.warn(`${ia.nombre} no puede jugar: mano vacía.`);
+
+      // 2. Asegurarse de tener la mano recogida
+      await ia.decidirRecuperar();
+
+      // Verificaciones de estado por si terminó la mano/partida durante la espera o recogida
+      if (this.partida.puntos[0] >= this.partida.limite || this.partida.puntos[1] >= this.partida.limite) return;
+      if (this.faseActual === 'PUNTAJE') return;
+      if (this.turno.actual !== ia.indice) return;
+
+      // 3. Evaluar cantos proactivos antes de jugar carta
+      const cantoEnvido = await ia.decidirCantarEnvidoProactivo();
+      if (cantoEnvido) {
+        await ia.hablar(cantoEnvido);
+        while (this.envidoEstado === 'CANTADO' || this.coordinandoRespuesta) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      if (this.partida.puntos[0] >= this.partida.limite || this.partida.puntos[1] >= this.partida.limite) return;
+      if (this.faseActual === 'PUNTAJE') return;
+      if (this.turno.actual !== ia.indice) return;
+
+      const cantoTruco = await ia.decidirCantarTrucoProactivo();
+      if (cantoTruco) {
+        await ia.hablar(cantoTruco);
+        while (this.truco.esperandoRespuesta || this.coordinandoRespuesta) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      if (this.partida.puntos[0] >= this.partida.limite || this.partida.puntos[1] >= this.partida.limite) return;
+      if (this.faseActual === 'PUNTAJE') return;
+      if (this.turno.actual !== ia.indice) return;
+
+      // 4. Proceder a jugar
+      if (ia.enMano.length > 0) {
+        console.log(`%c ${ia.nombre} tiene sus cartas y procede a decidir... `, 'color: #44ff44;');
+        const carta = await ia.decidirCarta();
+        // Doble chequeo final antes de jugar
+        if (carta && this.turno.actual === ia.indice && !this.truco.esperandoRespuesta && !this.coordinandoRespuesta && this.manoEnCurso) {
+          this.jugarCarta(ia, carta);
+        } else if (carta) {
+          console.warn(`%c [TURNO-LOCK] ${ia.nombre} descartó su jugada: condiciones cambiaron antes de lanzar `, 'color: #ff8800;');
+        }
+      } else {
+        console.warn(`${ia.nombre} no puede jugar: mano vacía.`);
+      }
+    } finally {
+      // Siempre liberar el lock al terminar
+      this.iaEnEjecucion.delete(ia.indice);
     }
   }
 
@@ -119,8 +164,13 @@ class Juego {
       return;
     }
 
-    if (this.truco.esperandoRespuesta) {
-      console.warn("No puedes jugar cartas mientras se espera respuesta al Truco.");
+    if (this.truco.esperandoRespuesta || this.coordinandoRespuesta) {
+      console.warn(`No se puede jugar: se está resolviendo un canto de Truco o Envido.`);
+      return;
+    }
+
+    if (!this.manoEnCurso) {
+      console.warn(`${jugador.nombre} intentó jugar una carta pero la mano ya no está en curso.`);
       return;
     }
 
@@ -155,6 +205,10 @@ class Juego {
         if (mano.esFinDeMano) {
           console.log('%c ¡MANO FINALIZADA! Esperando a que el repartidor inicie el conteo. ', 'background: #aa0000; color: #fff; font-weight: bold;');
           
+          // Marcar la mano como terminada ANTES de emitir el evento
+          // para que los turnos de IA en vuelo no puedan seguir cantando
+          this.manoEnCurso = false;
+
           // Solo notificamos que la mano terminó. 
           // El repartidor (Humano o IA) debe ser quien llame a contarPuntos().
           this.service.phaser.emitter.emit('manoFinished');
@@ -194,38 +248,43 @@ class Juego {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // 3. Fase 3: Truco (Ganador de la mano)
-    const mano = this.partida.manoActual;
-    const equipoGanadorIdx = mano.rondasGanadas[0] >= 2 ? 0 : 1;
-    const ganadorNombre = equipoGanadorIdx === 0 ? "Nosotros" : "Ellos";
-    
-    const ptsTruco = this.truco.puntosAlGanarMano();
-    this.hablar({ texto: `¡Mano para ${ganadorNombre}! (+${ptsTruco})` });
-
-    this.partida.sumarPuntos(equipoGanadorIdx, ptsTruco);
+    if (this.truco.estado === 'RECHAZADO') {
+      const pts = this.truco.puntosAlRechazar();
+      const equipoGanador = this.truco.equipoQueCanto;
+      const ganadorNombre = equipoGanador === 0 ? "Nosotros" : "Ellos";
+      
+      console.log(`%c [TRUCO] Contando puntos por rechazo. Ganador: Equipo ${equipoGanador + 1} (+${pts}) `, 'background: #004488; color: #fff;');
+      this.hablar({ texto: `¡Puntos por no querer para ${ganadorNombre}! (+${pts})` });
+      this.partida.sumarPuntos(equipoGanador, pts);
+    } else {
+      const mano = this.partida.manoActual;
+      const equipoGanadorIdx = mano.rondasGanadas[0] >= 2 ? 0 : 1;
+      const ganadorNombre = equipoGanadorIdx === 0 ? "Nosotros" : "Ellos";
+      
+      const ptsTruco = this.truco.puntosAlGanarMano();
+      console.log(`%c [TRUCO] Contando puntos de mano ganada. Ganador: Equipo ${equipoGanadorIdx + 1} (+${ptsTruco}) `, 'background: #004488; color: #fff;');
+      this.hablar({ texto: `¡Mano para ${ganadorNombre}! (+${ptsTruco})` });
+      this.partida.sumarPuntos(equipoGanadorIdx, ptsTruco);
+    }
     this.faseActual = 'REPARTIR';
     this.service.phaser.emitter.emit('puntosContados');
   }
 
   onTrucoRespondido(data: { jugador: any, respuesta: string, estado: string }) {
     if (data.respuesta === 'no quiero') {
-      // El equipo que cantó gana los puntos correspondientes
-      const pts = this.truco.puntosAlRechazar();
-      const equipoGanador = this.truco.equipoQueCanto;
-      
-      console.log(`%c [TRUCO] Mano terminada por No Quiero. Equipo ${equipoGanador + 1} suma ${pts} pts. `, 'background: #770000; color: #fff;');
-      this.partida.sumarPuntos(equipoGanador, pts);
+      this.manoEnCurso = false;
+      console.log(`%c [TRUCO] Mano cortada por No Quiero. Esperando a que el dealer cuente los puntos. `, 'background: #770000; color: #fff;');
       
       // Terminar la mano inmediatamente
       this.service.phaser.emitter.emit('manoFinished');
     } else {
-      // Quiero: Simplemente reanudamos (el turno.set() en Truco.registrarRespuesta no es necesario si manejamos bien el estado)
+      // Quiero: Reanudar el juego pasando el turno correctamente
       console.log(`%c [TRUCO] Juego continúa con nivel ${this.truco.nivel} `, 'color: #00bb00;');
       
-      // Si era turno de una IA, relanzamos su lógica
-      const jugadorActual = this.jugadores[this.turno.actual];
-      if (jugadorActual.tipo === 'ia') {
-        this.ejecutarTurnoIA(jugadorActual as any);
-      }
+      // Relanzar turno usando turno.set() -- éste maneja el lock de ia internamente.
+      // El lock coordinandoRespuesta ya fue liberado por el método coordinar* antes de llegar aquí.
+      const idxActual = this.turno.actual;
+      this.turno.set(idxActual);
     }
   }
 
@@ -292,6 +351,11 @@ class Juego {
   }
 
   start() {
+    // Activar el flag de mano en curso al iniciar una nueva mano
+    this.manoEnCurso = true;
+    // Limpiar locks de turno de manos anteriores
+    this.iaEnEjecucion.clear();
+    this.coordinandoRespuesta = false;
     this.jugadores.forEach((item) => item.mano.setEvents());
   }
 
@@ -363,6 +427,18 @@ class Juego {
     this.service.phaser.emitter.emit('hablar', datos);
 
     const texto = datos.texto.toLowerCase();
+
+    // Guardas: no procesar cantos si la mano ya terminó o estamos en fase de puntaje
+    const esCantoDeJuego = [
+      'envido', 'flor',
+      'truco', 'retruco', 'vale nueve', 'vale 9', 'vale juego', 'vale 12',
+      'quiero', 'no quiero'
+    ].includes(texto);
+
+    if (esCantoDeJuego && datos.jugador && (!this.manoEnCurso || this.faseActual === 'PUNTAJE')) {
+      console.warn(`%c [HABLAR] ${datos.jugador?.nombre} intentó cantar "${texto}" pero la mano ya no está en curso. Se ignora. `, 'color: #ff4444;');
+      return Promise.resolve();
+    }
     
     // 1. Delegar a Envido
     if (datos.jugador) {
@@ -435,5 +511,160 @@ class Juego {
     if (vn_norm === '10') perica = '12';
 
     return n_norm === perico || n_norm === perica;
+  }
+
+  async coordinarRespuestaTruco(data: { jugador: IJugador, nivel: number }) {
+    // Evitar que el mismo canto dispare dos coordinaciones (p. ej.: listener duplicado)
+    if (this.coordinandoRespuesta) {
+      console.warn(`%c [COORDINACION TRUCO] Ya hay una coordinación en curso, ignorando `, 'color: #ff4444;');
+      return;
+    }
+    this.coordinandoRespuesta = true;
+
+    try {
+      const retador = data.jugador;
+      const equipoRespondeIdx = (retador.pareja.indice + 1) % 2;
+
+      console.log(`%c [COORDINACION TRUCO] Coordinando respuesta para Equipo ${equipoRespondeIdx + 1} `, 'color: #ffaa00; font-weight: bold;');
+
+      const equipo = this.jugadores.filter(j => j.pareja.indice === equipoRespondeIdx);
+      const jugadorA = equipo[0];
+      const jugadorB = equipo[1];
+
+      if (jugadorA.tipo === 'ia' && jugadorB.tipo === 'ia') {
+        const iaA = jugadorA as IA_Jugador;
+        const iaB = jugadorB as IA_Jugador;
+
+        const opinionA = iaA.calcularOpinionTruco();
+        const opinionB = iaB.calcularOpinionTruco();
+
+        console.log(`%c [COORDINACION TRUCO] IA ${iaA.nombre} opina: ${opinionA.toUpperCase()}, IA ${iaB.nombre} opina: ${opinionB.toUpperCase()} `, 'color: #ffaa00;');
+
+        const decisionFinal = (opinionA === 'quiero' || opinionB === 'quiero') ? 'quiero' : 'no quiero';
+        const vocero = (opinionA === decisionFinal) ? iaA : iaB;
+
+        const delay = Math.min(iaA.personaje.stats.inteligencia, iaB.personaje.stats.inteligencia) * 1000 + 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        if (this.truco.esperandoRespuesta && this.truco.equipoQueCanto !== equipoRespondeIdx) {
+          console.log(`%c [COORDINACION TRUCO] Vocero ${vocero.nombre} habla: ${decisionFinal.toUpperCase()} `, 'color: #ffaa00;');
+          await vocero.hablar(decisionFinal);
+        }
+      } else {
+        const humano = (jugadorA.tipo === 'humano') ? jugadorA : jugadorB;
+        const iaCompañero = (jugadorA.tipo === 'ia') ? jugadorA as IA_Jugador : jugadorB as IA_Jugador;
+
+        const opinionIA = iaCompañero.calcularOpinionTruco();
+        console.log(`%c [COORDINACION TRUCO] Compañero IA ${iaCompañero.nombre} opina: ${opinionIA.toUpperCase()} `, 'color: #ffaa00;');
+
+        const nivelNombre = this.truco.getNombreNivel(data.nivel).toUpperCase();
+        const opinionTexto = opinionIA === 'quiero' ? 'QUIERO' : 'NO QUIERO';
+        const mensaje = `${retador.nombre} cantó ${nivelNombre}.\nTu compañero ${iaCompañero.nombre} opina: ${opinionTexto}.\n¿Qué decides?`;
+
+        // coordinandoRespuesta se liberará al terminar el callback del humano
+        await new Promise<void>(resolve => {
+          this.service.phaser.emitter.emit('mostrarPregunta', {
+            texto: mensaje,
+            callback: async (aceptaHumano: boolean) => {
+              const opinionHumano = aceptaHumano ? 'quiero' : 'no quiero';
+              const decisionFinal = (opinionIA === 'quiero' || opinionHumano === 'quiero') ? 'quiero' : 'no quiero';
+
+              console.log(`%c [COORDINACION TRUCO] Humano decide: ${opinionHumano.toUpperCase()}. Final: ${decisionFinal.toUpperCase()} `, 'color: #ffaa00;');
+
+              if (opinionHumano === 'no quiero' && opinionIA === 'quiero') {
+                await iaCompañero.hablar('quiero');
+              } else {
+                await humano.hablar(decisionFinal);
+              }
+              resolve();
+            }
+          });
+        });
+      }
+    } finally {
+      this.coordinandoRespuesta = false;
+      console.log(`%c [COORDINACION TRUCO] Coordinación completada. Lock liberado. `, 'color: #44ff44;');
+    }
+  }
+
+  async coordinarRespuestaEnvido(data: { jugador: IJugador, puntos: number }) {
+    // Evitar doble coordinación simultánea
+    if (this.coordinandoRespuesta) {
+      console.warn(`%c [COORDINACION ENVIDO] Ya hay una coordinación en curso, ignorando `, 'color: #ff4444;');
+      return;
+    }
+    this.coordinandoRespuesta = true;
+
+    try {
+      const retador = data.jugador;
+      const equipoRespondeIdx = (retador.pareja.indice + 1) % 2;
+
+      console.log(`%c [COORDINACION ENVIDO] Coordinando respuesta para Equipo ${equipoRespondeIdx + 1} `, 'color: #ffaa00; font-weight: bold;');
+
+      const equipo = this.jugadores.filter(j => j.pareja.indice === equipoRespondeIdx);
+      const jugadorA = equipo[0];
+      const jugadorB = equipo[1];
+
+      if (jugadorA.tipo === 'ia' && jugadorB.tipo === 'ia') {
+        const iaA = jugadorA as IA_Jugador;
+        const iaB = jugadorB as IA_Jugador;
+
+        const opinionA = iaA.calcularOpinionEnvido();
+        const opinionB = iaB.calcularOpinionEnvido();
+
+        console.log(`%c [COORDINACION ENVIDO] IA ${iaA.nombre} opina: ${opinionA.toUpperCase()}, IA ${iaB.nombre} opina: ${opinionB.toUpperCase()} `, 'color: #ffaa00;');
+
+        const decisionFinal = (opinionA === 'quiero' || opinionB === 'quiero') ? 'quiero' : 'no quiero';
+        const vocero = (opinionA === decisionFinal) ? iaA : iaB;
+
+        const delay = Math.min(iaA.personaje.stats.inteligencia, iaB.personaje.stats.inteligencia) * 1000 + 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        // Verificar que la mano sigue activa y el envido sigue esperando
+        if (!this.manoEnCurso) {
+          console.warn(`%c [COORDINACION ENVIDO] Mano finalizó durante la espera. Se cancela la respuesta. `, 'color: #ff4444;');
+        } else if (this.envidoEstado === 'CANTADO' && this.equipoQueCantoEnvido !== equipoRespondeIdx) {
+          console.log(`%c [COORDINACION ENVIDO] Vocero ${vocero.nombre} habla: ${decisionFinal.toUpperCase()} `, 'color: #ffaa00;');
+          await vocero.hablar(decisionFinal);
+        }
+      } else {
+        const humano = (jugadorA.tipo === 'humano') ? jugadorA : jugadorB;
+        const iaCompañero = (jugadorA.tipo === 'ia') ? jugadorA as IA_Jugador : jugadorB as IA_Jugador;
+
+        const opinionIA = iaCompañero.calcularOpinionEnvido();
+        console.log(`%c [COORDINACION ENVIDO] Compañero IA ${iaCompañero.nombre} opina: ${opinionIA.toUpperCase()} `, 'color: #ffaa00;');
+
+        const opinionTexto = opinionIA === 'quiero' ? 'QUIERO' : 'NO QUIERO';
+        const mensaje = `${retador.nombre} cantó ENVIDO.\nTu compañero ${iaCompañero.nombre} opina: ${opinionTexto}.\n¿Qué decides?`;
+
+        await new Promise<void>(resolve => {
+          this.service.phaser.emitter.emit('mostrarPregunta', {
+            texto: mensaje,
+            callback: async (aceptaHumano: boolean) => {
+              // Si la mano terminó mientras el humano pensaba, descartar silenciosamente
+              if (!this.manoEnCurso) {
+                console.warn(`%c [COORDINACION ENVIDO] Mano finalizó antes de que el humano respondiera. Se descarta. `, 'color: #ff4444;');
+                resolve();
+                return;
+              }
+              const opinionHumano = aceptaHumano ? 'quiero' : 'no quiero';
+              const decisionFinal = (opinionIA === 'quiero' || opinionHumano === 'quiero') ? 'quiero' : 'no quiero';
+
+              console.log(`%c [COORDINACION ENVIDO] Humano decide: ${opinionHumano.toUpperCase()}. Final: ${decisionFinal.toUpperCase()} `, 'color: #ffaa00;');
+
+              if (opinionHumano === 'no quiero' && opinionIA === 'quiero') {
+                await iaCompañero.hablar('quiero');
+              } else {
+                await humano.hablar(decisionFinal);
+              }
+              resolve();
+            }
+          });
+        });
+      }
+    } finally {
+      this.coordinandoRespuesta = false;
+      console.log(`%c [COORDINACION ENVIDO] Coordinación completada. Lock liberado. `, 'color: #44ff44;');
+    }
   }
 }

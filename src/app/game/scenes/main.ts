@@ -25,6 +25,23 @@ export class Main extends Phaser.Scene {
   preload() {
     console.log('preload');
     this.load.audioSprite('voces/miguel', 'assets/sounds/miguel/voces.json', 'assets/sounds/miguel/voces.mp3');
+    
+    // Cargar dinámicamente voces para las IAs seleccionadas
+    if (this.service?.selectedIAs) {
+      this.service.selectedIAs.forEach(ia => {
+        const normName = ia.nombre.toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/ñ/g, 'n')
+          .replace(/[^a-z0-9_]/g, '_')
+          .replace(/__+/g, '_');
+        
+        if (normName !== 'miguel') {
+          const key = `voces/${normName}`;
+          this.load.audioSprite(key, `assets/sounds/${normName}/voces.json`, `assets/sounds/${normName}/voces.mp3`);
+        }
+      });
+    }
+
     this.load.image('phaser', 'assets/sprites/phaser.png');
     this.load.image('shadow', 'assets/sprites/shadow.png');
     this.load.svg('wood', 'assets/svg/wood.svg');
@@ -44,8 +61,10 @@ export class Main extends Phaser.Scene {
     this.scale.on('resize', this.onResize, this);
     this.onResize();
 
+    this.sound.mute = this.service.isMuted;
     this.juego = new IngJuego.Regla.Juego(this.service);
     this.service.juego = this.juego;
+    this.service.phaser.emitter.emit('juegoInicializado');
   }
 
   onResize() {

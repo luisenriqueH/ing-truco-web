@@ -1,0 +1,13 @@
+{
+  "nombre": "La Flaca",
+  "estilo": "Muy impaciente",
+  "partidasJugadas": 0,
+  "partidasGanadas": 0,
+  "xp": 0,
+  "stats": {
+    "agresividad": 0.8,
+    "paciencia": 0.1,
+    "bluff": 0.7,
+    "inteligencia": 0.3
+  }
+}

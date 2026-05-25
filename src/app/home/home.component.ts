@@ -15,65 +15,143 @@ import { GameService } from '../services/game.service';
         <div class="coin-display glass-card">
           <img src="assets/models/coin.png" class="coin-icon" alt="coins">
           <span class="coin-amount">{{ coins }}</span>
-          <button class="btn-modern btn-store" (click)="toggleStore()">+</button>
+          <button class="btn-modern btn-store" (click)="selectTab('tienda')">+</button>
         </div>
       </header>
 
       <!-- Main Controls -->
-      <main class="main-content">
-        <div class="hero-section" *ngIf="!showStore">
+      <main class="main-content" [class.wide-layout]="activeTab === 'ia'">
+        <div class="hero-section">
           <h1 class="game-title">TRUCO VENEZOLANO</h1>
 
-          <!-- Deck Selector -->
-          <div class="deck-selector">
-            <p class="deck-label">ELIGE TU BARAJA</p>
-            <div class="deck-list">
-              <div
-                class="deck-card"
-                *ngFor="let deck of decks"
-                [class.selected]="selectedDeck === deck.key"
-                (click)="selectDeck(deck.key)"
-              >
-                <div class="deck-preview"
-                  [style.background-image]="'url(assets/atlas/' + deck.key + '.png)'"
-                  [style.background-position]="deck.previewPos"
-                ></div>
-                <span class="deck-name">{{ deck.label }}</span>
-                <div class="deck-check" *ngIf="selectedDeck === deck.key">✓</div>
+          <!-- Tab Bar Navigation -->
+          <div class="tabs-container">
+            <button class="tab-btn" [class.active]="activeTab === 'jugar'" (click)="selectTab('jugar')">🎮 JUGAR</button>
+            <button class="tab-btn" [class.active]="activeTab === 'ia'" (click)="selectTab('ia')">🧠 GIMNASIO IA</button>
+            <button class="tab-btn" [class.active]="activeTab === 'tienda'" (click)="selectTab('tienda')">🪙 TIENDA</button>
+          </div>
+
+          <!-- JUGAR TAB -->
+          <div class="tab-content-panel animate-fadeIn" *ngIf="activeTab === 'jugar'">
+            <!-- Deck Selector -->
+            <div class="deck-selector">
+              <p class="deck-label">ELIGE TU BARAJA</p>
+              <div class="deck-list">
+                <div
+                  class="deck-card"
+                  *ngFor="let deck of decks"
+                  [class.selected]="selectedDeck === deck.key"
+                  (click)="selectDeck(deck.key)"
+                >
+                  <div class="deck-preview"
+                    [style.background-image]="'url(assets/atlas/' + deck.key + '.png)'"
+                    [style.background-position]="deck.previewPos"
+                  ></div>
+                  <span class="deck-name">{{ deck.label }}</span>
+                  <div class="deck-check" *ngIf="selectedDeck === deck.key">✓</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="play-action">
+              <button class="btn-modern start-btn" (click)="startGame()">JUGAR AHORA</button>
+              <div class="cost-tag">Costo: {{ COST_TO_PLAY }} CR</div>
+            </div>
+          </div>
+
+          <!-- GIMNASIO IA TAB -->
+          <div class="tab-content-panel animate-fadeIn" *ngIf="activeTab === 'ia'">
+            <div class="ias-grid">
+              <div class="ia-character-card glass-card" *ngFor="let char of characters">
+                <div class="ia-card-header">
+                  <div class="ia-avatar" [style.background]="getCharacterGradient(char.nombre)">
+                    {{ getInitials(char.nombre) }}
+                  </div>
+                  <div class="ia-identity">
+                    <h3 class="ia-name">{{ char.nombre }}</h3>
+                    <span class="ia-style">{{ char.estilo }}</span>
+                  </div>
+                </div>
+                
+                <!-- XP & Level progress -->
+                <div class="ia-xp-section">
+                  <div class="ia-xp-label">
+                    <span>NIVEL {{ getLevel(char.xp) }}</span>
+                    <span class="xp-val">{{ char.xp % 100 }}/100 XP</span>
+                  </div>
+                  <div class="ia-xp-bar-bg">
+                    <div class="ia-xp-bar-fill" [style.width]="(char.xp % 100) + '%'"></div>
+                  </div>
+                </div>
+
+                <!-- Match Stats -->
+                <div class="ia-match-stats">
+                  <span>Partidas: {{ char.partidasJugadas }}</span>
+                  <span>Victorias: {{ char.partidasGanadas }}</span>
+                </div>
+
+                <!-- Character Stats Bars -->
+                <div class="ia-stats-container">
+                  <div class="ia-stat-row">
+                    <span class="stat-label">Agresividad</span>
+                    <div class="stat-bar-bg">
+                      <div class="stat-bar-fill agresividad" [style.width]="(char.stats.agresividad * 100) + '%'"></div>
+                    </div>
+                    <span class="stat-value">{{ Math.round(char.stats.agresividad * 100) }}%</span>
+                  </div>
+                  <div class="ia-stat-row">
+                    <span class="stat-label">Paciencia</span>
+                    <div class="stat-bar-bg">
+                      <div class="stat-bar-fill paciencia" [style.width]="(char.stats.paciencia * 100) + '%'"></div>
+                    </div>
+                    <span class="stat-value">{{ Math.round(char.stats.paciencia * 100) }}%</span>
+                  </div>
+                  <div class="ia-stat-row">
+                    <span class="stat-label">Bluff</span>
+                    <div class="stat-bar-bg">
+                      <div class="stat-bar-fill bluff" [style.width]="(char.stats.bluff * 100) + '%'"></div>
+                    </div>
+                    <span class="stat-value">{{ Math.round(char.stats.bluff * 100) }}%</span>
+                  </div>
+                  <div class="ia-stat-row">
+                    <span class="stat-label">Inteligencia</span>
+                    <div class="stat-bar-bg">
+                      <div class="stat-bar-fill inteligencia" [style.width]="(char.stats.inteligencia * 100) + '%'"></div>
+                    </div>
+                    <span class="stat-value">{{ Math.round(char.stats.inteligencia * 100) }}%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="play-action">
-            <button class="btn-modern start-btn" (click)="startGame()">JUGAR AHORA</button>
-            <div class="cost-tag">Costo: {{ COST_TO_PLAY }} CR</div>
+          <!-- TIENDA TAB -->
+          <div class="tab-content-panel store-tab-container animate-fadeIn" *ngIf="activeTab === 'tienda'">
+            <div class="store-modal glass-card">
+              <h2>TIENDA DE MONEDAS</h2>
+              <div class="package-list">
+                <div class="package-card" (click)="buy(10, '10CR')">
+                  <span class="pkg-amt">10 CR</span>
+                  <span class="pkg-price">$1.00</span>
+                </div>
+                <div class="package-card" (click)="buy(100, '100CR')">
+                  <span class="pkg-amt">100 CR</span>
+                  <span class="pkg-price">$5.00</span>
+                </div>
+                <div class="package-card" (click)="buy(1000, '1000CR')">
+                  <span class="pkg-amt">1000 CR</span>
+                  <span class="pkg-price">$20.00</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- Store Modal -->
-        <div class="store-modal glass-card" *ngIf="showStore">
-          <h2>TIENDA DE MONEDAS</h2>
-          <div class="package-list">
-            <div class="package-card" (click)="buy(10, '10CR')">
-              <span class="pkg-amt">10 CR</span>
-              <span class="pkg-price">$1.00</span>
-            </div>
-            <div class="package-card" (click)="buy(100, '100CR')">
-              <span class="pkg-amt">100 CR</span>
-              <span class="pkg-price">$5.00</span>
-            </div>
-            <div class="package-card" (click)="buy(1000, '1000CR')">
-              <span class="pkg-amt">1000 CR</span>
-              <span class="pkg-price">$20.00</span>
-            </div>
-          </div>
-          <button class="btn-modern btn-secondary" (click)="toggleStore()">CERRAR</button>
         </div>
       </main>
 
       <!-- Footer Info -->
       <footer class="footer-info">
-        <span>VERSIÓN 1.1.0 (BETA)</span>
+        <span>VERSIÓN 1.2.0 (BETA)</span>
       </footer>
     </div>
   `,
@@ -87,6 +165,7 @@ import { GameService } from '../services/game.service';
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
 
     .bg-overlay {
@@ -105,9 +184,10 @@ import { GameService } from '../services/game.service';
 
     .glass-card {
       color: #fff;
-      background: rgba(20, 20, 20, 0.9);
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 24px;
-      border: 2px solid rgba(255, 215, 0, 0.1);
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
       padding: 1.5rem;
     }
@@ -139,29 +219,75 @@ import { GameService } from '../services/game.service';
       text-align: center;
       width: 100%;
       max-width: 600px;
+      transition: max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+    }
+    .main-content.wide-layout {
+      max-width: 1200px;
     }
 
     .game-title {
       font-size: 4rem;
       font-weight: 800;
-      margin-bottom: 3rem;
-      letter-spacing: 0.2em;
+      margin-bottom: 2rem;
+      letter-spacing: 0.15em;
       text-shadow: 0 10px 20px rgba(0,0,0,0.5);
       background: linear-gradient(to bottom, #fff, #94a3b8);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
-    .start-btn {
-      font-size: 2rem;
-      padding: 1.5rem 4rem;
+    /* ── Tab Bar Navigation ── */
+    .tabs-container {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      z-index: 10;
+      position: relative;
+    }
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.6);
+      padding: 0.75rem 1.75rem;
+      border-radius: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+    }
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+    .tab-btn.active {
+      background: rgba(251, 191, 36, 0.2);
+      border-color: #fbbf24;
+      color: #fbbf24;
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.15);
     }
 
+    .start-btn {
+      font-size: 2rem;
+      padding: 1.25rem 4rem;
+    }
+
+    .store-tab-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
     .store-modal {
       display: flex;
       flex-direction: column;
       gap: 2rem;
-      animation: fadeIn 0.3s ease-out;
+    }
+    .store-modal h2 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: 1px;
     }
 
     .package-list {
@@ -185,10 +311,10 @@ import { GameService } from '../services/game.service';
     .package-card:hover {
       background: rgba(255,255,255,0.15);
       transform: scale(1.05);
-      border-color: var(--primary);
+      border-color: #fbbf24;
     }
 
-    .pkg-amt { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
+    .pkg-amt { font-size: 1.25rem; font-weight: 800; color: #fbbf24; }
     .pkg-price { font-size: 1rem; color: #10b981; font-weight: 600; }
 
     .footer-info {
@@ -197,11 +323,6 @@ import { GameService } from '../services/game.service';
       color: rgba(255,255,255,0.3);
       font-size: 0.75rem;
       letter-spacing: 0.1em;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .play-action {
@@ -221,19 +342,18 @@ import { GameService } from '../services/game.service';
     /* ── Deck Selector ── */
     .deck-selector {
       margin-bottom: 2.5rem;
-      animation: fadeIn 0.4s ease-out;
     }
     .deck-label {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: 800;
       letter-spacing: 0.25em;
       color: rgba(255,255,255,0.45);
       text-transform: uppercase;
-      margin-bottom: 1rem;
+      margin-bottom: 1.25rem;
     }
     .deck-list {
       display: flex;
-      gap: 1.25rem;
+      gap: 1.5rem;
       justify-content: center;
       flex-wrap: wrap;
     }
@@ -265,7 +385,7 @@ import { GameService } from '../services/game.service';
       image-rendering: auto;
     }
     .deck-name {
-      font-size: 0.65rem;
+      font-size: 0.7rem;
       font-weight: 700;
       letter-spacing: 0.1em;
       color: rgba(255,255,255,0.7);
@@ -287,19 +407,178 @@ import { GameService } from '../services/game.service';
       justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
+
+    /* ── IA Gym Dashboard ── */
+    .ias-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 1.5rem;
+      max-height: 55vh;
+      overflow-y: auto;
+      padding: 0.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+    .ias-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+    .ias-grid::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+    .ia-character-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.3s ease;
+    }
+    .ia-character-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(251, 191, 36, 0.3);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    .ia-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .ia-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .ia-identity {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+    }
+    .ia-name {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .ia-style {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .ia-xp-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .ia-xp-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .ia-xp-label span:first-child {
+      color: #fbbf24;
+    }
+    .ia-xp-label .xp-val {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .ia-xp-bar-bg {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .ia-xp-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+      border-radius: 99px;
+    }
+    .ia-match-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.5rem;
+    }
+    .ia-stats-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .ia-stat-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 35px;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+    }
+    .stat-label {
+      color: rgba(255, 255, 255, 0.7);
+      text-align: left;
+      font-weight: 600;
+    }
+    .stat-bar-bg {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+    }
+    .stat-bar-fill.agresividad {
+      background: linear-gradient(90deg, #ef4444, #b91c1c);
+    }
+    .stat-bar-fill.paciencia {
+      background: linear-gradient(90deg, #10b981, #047857);
+    }
+    .stat-bar-fill.bluff {
+      background: linear-gradient(90deg, #8b5cf6, #6d28d9);
+    }
+    .stat-bar-fill.inteligencia {
+      background: linear-gradient(90deg, #06b6d4, #0891b2);
+    }
+    .stat-value {
+      color: #fff;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    /* Animations */
+    .animate-fadeIn {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   `]
 })
 export class HomeComponent implements OnInit {
   readonly COST_TO_PLAY = 2;
   coins: number = 0;
-  showStore: boolean = false;
+  activeTab: 'jugar' | 'ia' | 'tienda' = 'jugar';
+  Math = Math;
 
-  /** Available card decks — key matches atlas filename without extension */
   decks = [
     {
       key: 'naipes1',
       label: 'Clásica',
-      // Show the first card (unodeoro) at offset 0,0 on a 1300px-wide sheet
       previewPos: '0px 0px'
     },
     {
@@ -315,6 +594,7 @@ export class HomeComponent implements OnInit {
   ];
 
   selectedDeck: string;
+  characters: any[] = [];
 
   constructor(
     private creditService: CreditService,
@@ -322,9 +602,29 @@ export class HomeComponent implements OnInit {
     private gameService: GameService
   ) { }
 
-  ngOnInit() {
+  async ngOnInit() {
     this.coins = this.creditService.getCoins();
     this.selectedDeck = this.gameService.naipes;
+    
+    // Load registered decks/skins dynamically
+    await this.loadSkins();
+
+    // Load persistent characters
+    this.characters = await this.gameService.loadCharacters();
+  }
+
+  async loadSkins() {
+    try {
+      const response = await fetch('/assets/skins/registered.json');
+      if (response.ok) {
+        const skins = await response.json();
+        if (Array.isArray(skins) && skins.length > 0) {
+          this.decks = skins;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load skins from registered.json, using fallback.', e);
+    }
   }
 
   selectDeck(key: string) {
@@ -332,23 +632,50 @@ export class HomeComponent implements OnInit {
     this.gameService.naipes = key;
   }
 
+  selectTab(tab: 'jugar' | 'ia' | 'tienda') {
+    this.activeTab = tab;
+  }
+
   startGame() {
     if (this.creditService.deductCoins(this.COST_TO_PLAY)) {
       this.router.navigate(['/game']);
     } else {
       alert('No tienes suficientes monedas para jugar.');
-      this.showStore = true;
+      this.activeTab = 'tienda';
     }
-  }
-  startTest() {
-    this.router.navigate(['/test']);
-  }
-
-  toggleStore() {
-    this.showStore = !this.showStore;
   }
 
   buy(amount: number, pkgId: any) {
     this.creditService.buyCoins(pkgId);
+    this.coins = this.creditService.getCoins();
+  }
+
+  getLevel(xp: number): number {
+    return Math.floor(xp / 100) + 1;
+  }
+
+  getInitials(name: string): string {
+    if (!name) return '';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  }
+
+  getCharacterGradient(name: string): string {
+    const gradients = [
+      'linear-gradient(135deg, #3b82f6, #1d4ed8)', // Blue
+      'linear-gradient(135deg, #ec4899, #be185d)', // Pink/Rose
+      'linear-gradient(135deg, #f59e0b, #d97706)', // Amber/Orange
+      'linear-gradient(135deg, #10b981, #047857)', // Emerald
+      'linear-gradient(135deg, #8b5cf6, #6d28d9)', // Purple
+      'linear-gradient(135deg, #06b6d4, #0891b2)', // Cyan
+      'linear-gradient(135deg, #f43f5e, #be123c)', // Rose/Red
+      'linear-gradient(135deg, #64748b, #334155)'  // Slate
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const idx = Math.abs(hash) % gradients.length;
+    return gradients[idx];
   }
 }
+

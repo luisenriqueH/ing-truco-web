@@ -63,7 +63,7 @@ interface IJugador {
   dragAuto: (item: IObjeto, props?: any, zone?: Zone) => Promise<void>;
   cogerAuto: (carta: ICarta, indice: number) => Promise<void>;
 
-  hablar: (texto: string) => void;
+  hablar: (texto: string) => Promise<void>;
   signal: (faceID: string) => Promise<void>;
 
 }
@@ -331,33 +331,85 @@ class Jugador implements IJugador {
   }
   // #endregion carta
 
-  hablar(texto: string): Promise<void> {
-    return new Promise((resolve) => {
-      this.play(texto); // Activar sonido
-      this.juego.hablar({ jugador: this, texto }) // Activar lógica y log
-        .then(() => resolve());
-    });
+  async hablar(texto: string): Promise<void> {
+    console.log(`%c [HABLAR] ${this.nombre}: "${texto}" `, 'color: #00ffcc; font-weight: bold;');
+    await Promise.all([
+      this.play(texto),
+      this.juego.hablar({ jugador: this, texto })
+    ]);
   }
-  play(texto: string) {
-    const onFlor = (voice: string) => {
-      return new Promise<string>((resolve, reject) => {
-        if (voice.startsWith('flor')) {
-          this.speech.play('flor');
-          this.speech.once('complete', () => resolve(voice.replace('flor', '').trim()));
-        } else { resolve(voice); }
-      });
+  parseTextToMarkers(texto: string): string[] {
+    const clean = texto.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/[¡!¿?()]/g, "") // Remove punctuation/brackets
+      .trim();
+
+    // Extract any number between 3 and 60
+    const numMatch = clean.match(/\b\d+\b/);
+    const numberStr = numMatch ? numMatch[0] : null;
+
+    if (numberStr) {
+      const num = parseInt(numberStr, 10);
+      if (num >= 3 && num <= 60) {
+        if (clean.includes("con mi flor")) {
+          return ["con mi flor ", numberStr];
+        } else if (clean.includes("flor")) {
+          return ["tengo flor de ", numberStr];
+        } else {
+          return ["tengo ", numberStr];
+        }
+      }
     }
-    const onEnvido = (voice: string) => {
-      return new Promise<string>((resolve, reject) => {
-        if (voice.startsWith('envido')) {
-          this.speech.play('envido');
-          this.speech.once('complete', () => resolve(voice.replace('envido', '').trim()));
-        } else { resolve(voice); }
-      });
+
+    // Keyword mapping for clean text
+    if (clean === "quiero") return ["quiero"];
+    if (clean === "no quiero") return ["no quiero"];
+    if (clean === "truco") return ["truco"];
+    if (clean === "retruco") return ["retruco"];
+    if (clean === "vale 9" || clean === "vale nueve") return ["vale 9"];
+    if (clean === "vale 12" || clean === "vale doce") return ["vale 12"];
+    if (clean === "vale juego") return ["vale juego"];
+    if (clean === "envido" || clean === "real envido" || clean === "falta envido") return ["envido"];
+    if (clean === "flor") return ["flor"];
+    if (clean === "tengo flor") return ["tengo flor"];
+    if (clean.includes("mate")) return ["mate!"];
+    if (clean.includes("ganamos")) return ["ganamos!"];
+
+    // Fallbacks for substring matches
+    if (clean.includes("no quiero")) return ["no quiero"];
+    if (clean.includes("quiero")) return ["quiero"];
+    if (clean.includes("retruco")) return ["retruco"];
+    if (clean.includes("truco")) return ["truco"];
+    if (clean.includes("envido")) return ["envido"];
+    if (clean.includes("flor")) return ["flor"];
+
+    return [];
+  }
+
+  async playVoiceSequence(markers: string[]): Promise<void> {
+    for (const marker of markers) {
+      if (this.speech && (this.speech as any).markers && (this.speech as any).markers[marker]) {
+        const markerInfo = (this.speech as any).markers[marker];
+        const durationMs = (markerInfo.duration || 0.8) * 1000;
+        
+        console.log(`%c [SPEECH] ${this.nombre} reproduce "${marker}" (${durationMs}ms) `, 'color: #ffaa00;');
+        this.speech.play(marker);
+        
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, durationMs);
+        });
+      } else {
+        console.warn(`%c [SPEECH] Marcador "${marker}" no encontrado en el spritemap del jugador ${this.nombre} `, 'color: #ffaa00;');
+      }
     }
-    onFlor(texto)
-      .then((voice) => onEnvido(voice)
-        .then((voice) => this.speech.play(voice)));
+  }
+
+  async play(texto: string): Promise<void> {
+    const markers = this.parseTextToMarkers(texto);
+    if (markers.length === 0) {
+      return Promise.resolve();
+    }
+    await this.playVoiceSequence(markers);
   }
   signal(faceID: string): Promise<void> {
     return new Promise((resolve) => {
