@@ -1,13 +1,13 @@
 {
   "nombre": "El General",
   "estilo": "Autoritario",
-  "partidasJugadas": 2,
+  "partidasJugadas": 4,
   "partidasGanadas": 0,
-  "xp": 20,
+  "xp": 40,
   "stats": {
-    "agresividad": 0.79,
-    "paciencia": 0.41000000000000003,
+    "agresividad": 0.78,
+    "paciencia": 0.42000000000000004,
     "bluff": 0.5,
-    "inteligencia": 0.72
+    "inteligencia": 0.74
   }
 }

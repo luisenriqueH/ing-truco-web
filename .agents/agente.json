@@ -1,0 +1,10 @@
+{
+  "agenteSupervisor": "agente_developer.ts",
+  "agenteResponsable": "agente_local.ts",
+  "skills": [
+    "leer_archivo",
+    "actualizar_todolist",
+    "listar_proyectos_activos"
+  ],
+  "model": "gemma-local"
+}

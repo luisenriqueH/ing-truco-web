@@ -1,13 +1,13 @@
 {
   "nombre": "El Gocho",
   "estilo": "Paciente y analítico",
-  "partidasJugadas": 0,
+  "partidasJugadas": 4,
   "partidasGanadas": 0,
-  "xp": 0,
+  "xp": 40,
   "stats": {
-    "agresividad": 0.3,
-    "paciencia": 0.9,
+    "agresividad": 0.27999999999999997,
+    "paciencia": 0.92,
     "bluff": 0.2,
-    "inteligencia": 0.8
+    "inteligencia": 0.8400000000000001
   }
 }

@@ -14,7 +14,92 @@ export class CreditService {
   constructor() {
     this.loadState();
     this.processDailyGrant();
+    this.checkPaymentCallback();
   }
+
+  private checkPaymentCallback() {
+    // We check both window.location.search and the search parameters within the hash
+    const searchParams = new URLSearchParams(window.location.search);
+
+    // Check if the hash contains query parameters
+    let hashSearch = '';
+    const hashIndex = window.location.href.indexOf('#');
+    if (hashIndex !== -1) {
+      const hashPart = window.location.href.substring(hashIndex);
+      const questionMarkIndex = hashPart.indexOf('?');
+      if (questionMarkIndex !== -1) {
+        hashSearch = hashPart.substring(questionMarkIndex);
+      }
+    }
+    const hashParams = new URLSearchParams(hashSearch);
+
+    // Get parameters from either search or hash
+    const status = searchParams.get('status') || hashParams.get('status');
+    const payment = searchParams.get('payment') || hashParams.get('payment');
+    const txid = searchParams.get('txid') || hashParams.get('txid');
+    const pkg = searchParams.get('pkg') || hashParams.get('pkg');
+    const amtStr = searchParams.get('amt') || hashParams.get('amt');
+
+    const isSuccess = status === 'success' || status === 'completed' || payment === 'success' || payment === 'completed';
+
+    if (txid && isSuccess) {
+      const processedTxs = this.getProcessedTxs();
+      if (!processedTxs.includes(txid)) {
+        let amount = 0;
+        if (amtStr) {
+          amount = parseInt(amtStr, 10);
+        } else if (pkg) {
+          const config: Record<string, number> = {
+            '10CR': 10,
+            '100CR': 100,
+            '1000CR': 1000
+          };
+          amount = config[pkg] || 0;
+        }
+
+        if (amount > 0) {
+          this.addCoins(amount);
+          this.markTxAsProcessed(txid);
+          console.log(`[CreditService] Payment verified successfully! Added ${amount} coins for TXID: ${txid}`);
+          alert(`¡Pago procesado con éxito! Se han cargado ${amount} monedas a tu monedero.`);
+        }
+      } else {
+        console.log(`[CreditService] Transaction ${txid} was already processed.`);
+      }
+
+      // Clean up URL parameters to keep it clean and avoid reprocessing on reload
+      this.clearUrlParams();
+    }
+  }
+
+  private getProcessedTxs(): string[] {
+    const stored = localStorage.getItem('truco_processed_txs');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  private markTxAsProcessed(txid: string) {
+    const txs = this.getProcessedTxs();
+    txs.push(txid);
+    localStorage.setItem('truco_processed_txs', JSON.stringify(txs));
+  }
+
+  private clearUrlParams() {
+    try {
+      const url = new URL(window.location.href);
+      // Clear query params in main search
+      url.search = '';
+
+      // Clear query params in hash if present
+      if (url.hash.includes('?')) {
+        url.hash = url.hash.split('?')[0];
+      }
+
+      window.history.replaceState({}, document.title, url.toString());
+    } catch (e) {
+      console.error('Error clearing URL params:', e);
+    }
+  }
+
 
   private loadState() {
     const stored = localStorage.getItem(this.COINS_KEY);

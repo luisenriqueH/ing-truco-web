@@ -1,13 +1,13 @@
 {
   "nombre": "Doña María",
   "estilo": "Calculadora y lenta",
-  "partidasJugadas": 0,
-  "partidasGanadas": 0,
-  "xp": 0,
+  "partidasJugadas": 1,
+  "partidasGanadas": 1,
+  "xp": 30,
   "stats": {
-    "agresividad": 0.2,
+    "agresividad": 0.202,
     "paciencia": 0.9,
-    "bluff": 0.2,
-    "inteligencia": 0.9
+    "bluff": 0.20500000000000002,
+    "inteligencia": 0.905
   }
 }
