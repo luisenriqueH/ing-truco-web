@@ -1,6 +1,7 @@
 import { Component, AfterViewInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 import { GameService } from '../services/game.service';
+import { deserializeFromTrucoGameState } from '../models/socket/trucoGameState';
 
 interface LogItem {
   id: number;
@@ -19,10 +20,11 @@ interface LogItem {
       <div id="game-canvas"></div>
       
       <!-- Overlay GUI Angular -->
-      <div class="truco-overlay">
+      <div class="truco-overlay" *ngIf="!gameService.sandboxMode">
         
         <!-- Marcador Superior -->
         <div class="truco-header">
+          <div class="room-indicator-badge">🏫 {{ gameService.currentRoom }}</div>
           <div class="score-box">
             <div class="score-label">NOSOTROS</div>
             <div class="score-value">{{ scoreNosotros }}</div>
@@ -122,6 +124,50 @@ interface LogItem {
           </div>
         </div>
 
+      </div>
+
+      <!-- Sandbox GUI Angular -->
+      <div class="sandbox-overlay truco-overlay" *ngIf="gameService.sandboxMode">
+        <!-- Top Title Panel -->
+        <div class="sandbox-header-container">
+          <div class="sandbox-title-card glass-card">
+            <h2 class="sandbox-title">PIZARRA TÁCTICA</h2>
+            <p class="sandbox-subtitle">Mueve libremente la baraja para explicar tus jugadas</p>
+          </div>
+        </div>
+
+        <!-- Instructions Panel (Floating Right) -->
+        <div class="sandbox-instructions-container">
+          <div class="sandbox-instructions glass-card" [class.hidden]="!showSandboxInstructions">
+            <div class="instructions-title">🕹️ CONTROLES DE LA MESA</div>
+            <ul class="instructions-list">
+              <li>
+                <span class="ctrl-tag">Drag</span>
+                <span>Mueve una carta individual</span>
+              </li>
+              <li>
+                <span class="ctrl-tag">Hold + Drag</span>
+                <span>Arrastra toda la pila de cartas</span>
+              </li>
+              <li>
+                <span class="ctrl-tag">Doble Click + Drag</span>
+                <span>Toma la mitad de la pila</span>
+              </li>
+              <li>
+                <span class="ctrl-tag">Click</span>
+                <span>Voltea la carta boca arriba/abajo</span>
+              </li>
+            </ul>
+          </div>
+          <button class="truco-btn primary menu-icon-btn" (click)="toggleSandboxInstructions()">🕹️</button>
+        </div>
+
+        <!-- Sandbox Action Menu (Bottom Center) -->
+        <div class="sandbox-actions-container">
+          <button class="truco-btn primary" (click)="sandboxBarajar()">🔀 BARAJAR</button>
+          <button class="truco-btn" (click)="sandboxVoltearTodo()">🔄 VOLTEAR TODAS</button>
+          <button class="truco-btn danger" (click)="sandboxReagrupar()">📥 REAGRUPAR</button>
+        </div>
       </div>
 
       <button class="exit-btn btn-modern" (click)="exit()">SALIR</button>
@@ -279,6 +325,19 @@ interface LogItem {
       pointer-events: none;
       z-index: 100;
       font-size: calc(min(2vw, 12px));
+    }
+    .room-indicator-badge {
+      background: rgba(59, 130, 246, 0.9);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      padding: 6px 12px;
+      border-radius: 20px;
+      color: white;
+      font-weight: 800;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      white-space: nowrap;
     }
     .score-box {
       background: rgba(15, 23, 42, 0.9);
@@ -654,6 +713,102 @@ interface LogItem {
       height: 16px;
       margin: 0;
     }
+
+    /* Sandbox specific styles */
+    .sandbox-header-container {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 100;
+      text-align: center;
+    }
+    .sandbox-title-card {
+      padding: 10px 30px !important;
+      border-radius: 16px !important;
+      background: rgba(15, 23, 42, 0.85) !important;
+      border-color: rgba(251, 191, 36, 0.3) !important;
+    }
+    .sandbox-title {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #fbbf24;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .sandbox-subtitle {
+      margin: 4px 0 0 0;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .sandbox-instructions-container {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      pointer-events: auto;
+      z-index: 110;
+    }
+    .sandbox-instructions {
+      width: 250px;
+      padding: 15px !important;
+      border-radius: 16px !important;
+      background: rgba(15, 23, 42, 0.85) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7) !important;
+    }
+    .instructions-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #fbbf24;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 6px;
+    }
+    .instructions-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .instructions-list li {
+      font-size: 0.75rem;
+      color: #e2e8f0;
+      line-height: 1.3;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      text-align: left;
+    }
+    .ctrl-tag {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 800;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      width: fit-content;
+      border: 1px solid rgba(251, 191, 36, 0.25);
+    }
+    .sandbox-actions-container {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      pointer-events: auto;
+      z-index: 100;
+    }
   `]
 })
 export class GameComponent implements AfterViewInit, OnDestroy {
@@ -666,6 +821,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   showCardMenu = false;
   showVoiceMenu = false;
   showLogPanel = false;
+  showSandboxInstructions = false;
 
   // Card Buttons
   showRepartirBtn = true;
@@ -702,18 +858,136 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     private router: Router,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone
-  ) {}
+  ) { }
 
   ngAfterViewInit() {
     this.gameService.testMode = this.router.url.includes('/test');
-    console.log('Test Mode:', this.gameService.testMode);
+    this.gameService.sandboxMode = this.router.url.includes('/sandbox');
+    console.log('Test Mode:', this.gameService.testMode, 'Sandbox Mode:', this.gameService.sandboxMode);
     this.gameService.initGame('game-canvas');
     this.setupGuiSubscriptions();
+
+    // Hook webhook event messages
+    this.gameService.onWebhookEventCallback = (payload) => {
+      this.ngZone.run(() => {
+        if (payload.event === 'game_action') {
+          const actionData = payload.data;
+          // Ignore events generated by ourselves
+          if (actionData.userId === this.gameService.userId) {
+            return;
+          }
+
+          console.log('[SSE-GAME] Action received:', actionData);
+          const juego = this.gameService.juego;
+          if (!juego) return;
+
+          switch (actionData.action) {
+            case 'repartir':
+              const dealer = juego.jugadores[actionData.dealerIndex];
+              juego.repartir(dealer, actionData.indices);
+              break;
+
+            case 'cardPlayed':
+              const cardJugador = juego.jugadores[actionData.playerIndex];
+              const card = juego.baraja.getCarta(actionData.cardName);
+              if (card && juego.turno.actual === cardJugador.indice) {
+                if (actionData.tapada) {
+                  card.tapar();
+                } else {
+                  card.destapar();
+                }
+                juego.jugarCarta(cardJugador, card);
+              }
+              break;
+
+            case 'hablar':
+              const speaker = juego.jugadores[actionData.playerIndex];
+              if (speaker) {
+                speaker.hablar(actionData.texto);
+              }
+              break;
+
+            case 'recoger':
+              juego.recogerTodo(true);
+              break;
+
+            case 'contarPuntos':
+              juego.contarPuntos(true);
+              break;
+
+            case 'tomarMano':
+              const targetJugador = juego.jugadores[actionData.playerIndex];
+              if (targetJugador) {
+                targetJugador.mano.cogerMano();
+              }
+              break;
+
+            case 'requestGameState': {
+              // El host efectivo es el cliente con el userId más pequeño en la sala
+              // (mismo criterio que juego.render() usa para asignar myIndexInRoom=0)
+              const myRoom = this.gameService.currentRoom;
+              const roomClients = this.gameService.connectedClients
+                .filter(c => c.room === myRoom)
+                .sort((a, b) => a.userId.localeCompare(b.userId));
+              const isEffectiveHost = roomClients.length > 0 && roomClients[0].userId === this.gameService.userId;
+              if (isEffectiveHost) {
+                console.log('[SSE] Host procesando petición de estado de', actionData.requesterId);
+                const snapshot = juego.obtenerSnapshotEstado();
+                this.gameService.sendRoomAction('gameStateSnapshot', {
+                  targetUserId: actionData.requesterId,
+                  snapshot
+                });
+              }
+              break;
+            }
+
+            case 'gameStateSnapshot':
+              if (actionData.targetUserId === this.gameService.userId) {
+                console.log('[SSE] Recibido snapshot de estado, aplicando...');
+                let snapshotToApply = actionData.snapshot;
+                if (snapshotToApply && snapshotToApply.gameId === 'truco') {
+                  snapshotToApply = deserializeFromTrucoGameState(snapshotToApply);
+                }
+                if (juego) {
+                  juego.aplicarSnapshotEstado(snapshotToApply);
+                } else {
+                  console.log('[SSE] Guardando snapshot inicial para aplicar tras inicialización...');
+                  this.gameService.initialSnapshot = snapshotToApply;
+                }
+              }
+              break;
+          }
+          this.cdr.detectChanges();
+          return;
+        }
+
+        const text = payload.data && payload.data.message ? payload.data.message : JSON.stringify(payload.data);
+        const item: LogItem = {
+          id: Date.now() + Math.random(),
+          nombre: `📢 Webhook (${payload.event})`,
+          texto: text,
+          isPlayer: false
+        };
+        this.logs.unshift(item);
+        if (this.logs.length > 20) {
+          this.logs.pop();
+        }
+        this.logPreviewName = `Webhook (${payload.event})`;
+        this.logPreviewText = text;
+        this.logPreviewVisible = true;
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.logPreviewVisible = false;
+          this.cdr.detectChanges();
+        }, 5000);
+      });
+    };
   }
 
   ngOnDestroy() {
     this.clearAutoDealerTimeout();
     this.gameService.destroyGame();
+    this.gameService.onWebhookEventCallback = null;
   }
 
   exit() {
@@ -723,6 +997,10 @@ export class GameComponent implements AfterViewInit, OnDestroy {
 
   toggleLogPanel() {
     this.showLogPanel = !this.showLogPanel;
+  }
+
+  toggleSandboxInstructions() {
+    this.showSandboxInstructions = !this.showSandboxInstructions;
   }
 
   toggleCardMenu() {
@@ -746,12 +1024,30 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     const local = this.gameService.local;
     if (!local || !local.pareja) return;
     const equipoLocal = local.pareja.indice;
+    const mano = juego.partida.manoActual;
 
-    // 1. Static options
-    options.push({ key: 'flor', label: 'Flor', isResponse: false });
-    options.push({ key: 'envido', label: 'Envido', isResponse: false });
+    // 1. Flor option (only in first round if player has Flor)
+    if (mano.rondaActual === 0 && juego.envido.tieneFlor(local)) {
+      options.push({ key: 'flor', label: 'Flor', isResponse: false });
+    }
 
-    // 2. Dynamic Truco level button
+    // 2. Envido option (only if local doesn't have flor and no one has sung flor, OR if both teams have flor in 2nd round)
+    const algunaFlorCantada = juego.floresCantadas.size > 0;
+    const teamsWithFlor = Array.from(juego.floresCantadas).map((idx: any) => juego.jugadores[idx].pareja.indice);
+    const bothTeamsHaveFlor = teamsWithFlor.includes(0) && teamsWithFlor.includes(1);
+
+    let canCantarEnvido = false;
+    if (mano.rondaActual === 0) {
+      canCantarEnvido = !juego.envido.tieneFlor(local) && !algunaFlorCantada;
+    } else if (mano.rondaActual === 1) {
+      canCantarEnvido = bothTeamsHaveFlor && juego.envidoEstado === 'NADA';
+    }
+
+    if (canCantarEnvido) {
+      options.push({ key: 'envido', label: 'Envido', isResponse: false });
+    }
+
+    // 3. Dynamic Truco level button
     let proximoNivel = 3;
     if (t.nivel === 3) proximoNivel = 6;
     else if (t.nivel === 6) proximoNivel = 9;
@@ -762,7 +1058,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       options.push({ key: textoTruco.toLowerCase(), label: textoTruco, isResponse: false });
     }
 
-    // 3. Response buttons
+    // 4. Response buttons
     const trucoPendiente = t.esperandoRespuesta && t.equipoQueCanto !== equipoLocal;
     const envidoPendiente = juego.envidoEstado === 'CANTADO' && juego.equipoQueCantoEnvido !== equipoLocal;
 
@@ -789,10 +1085,16 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     this.showCardMenu = false;
   }
 
-  clickTomar() {
+  clickTomar(fromRemote: boolean = false) {
     this.clearAutoDealerTimeout();
     this.gameService.local.mano.cogerMano();
     this.showCardMenu = false;
+
+    if (!fromRemote) {
+      this.gameService.sendRoomAction('tomarMano', {
+        playerIndex: this.gameService.myIndexInRoom
+      });
+    }
   }
 
   clickContar() {
@@ -805,6 +1107,27 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     this.clearAutoDealerTimeout();
     this.gameService.juego.recogerTodo();
     this.showCardMenu = false;
+  }
+
+  sandboxBarajar() {
+    const scene = this.gameService.main as any;
+    if (scene && typeof scene.barajar === 'function') {
+      scene.barajar();
+    }
+  }
+
+  sandboxVoltearTodo() {
+    const scene = this.gameService.main as any;
+    if (scene && typeof scene.voltearTodo === 'function') {
+      scene.voltearTodo();
+    }
+  }
+
+  sandboxReagrupar() {
+    const scene = this.gameService.main as any;
+    if (scene && typeof scene.reagrupar === 'function') {
+      scene.reagrupar();
+    }
   }
 
   actualizarMarcador() {
@@ -889,6 +1212,30 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     emitter.on('juegoInicializado', () => {
       this.ngZone.run(() => {
         this.checkAndTriggerAutoDealerAction();
+        // Si hay un snapshot guardado al conectar (enviado por el servidor al conectar), aplicarlo
+        if (this.gameService.initialSnapshot) {
+          console.log('[SSE] Aplicando snapshot inicial guardado...');
+          let snapshotToApply = this.gameService.initialSnapshot;
+          if (snapshotToApply && snapshotToApply.gameId === 'truco') {
+            snapshotToApply = deserializeFromTrucoGameState(snapshotToApply);
+          }
+          this.gameService.juego.aplicarSnapshotEstado(snapshotToApply);
+          this.gameService.initialSnapshot = null;
+        } else {
+          // Comprobar si hay otros clientes en la sala — si los hay, solicitar el estado al host.
+          // IMPORTANTE: no usar myIndexInRoom !== 0, ya que un cliente nuevo puede ser index 0
+          // si su userId es alfabéticamente el menor, pero igual necesita recibir el estado.
+          const myRoom = this.gameService.currentRoom;
+          const otherClients = this.gameService.connectedClients.filter(
+            c => c.room === myRoom && c.userId !== this.gameService.userId
+          );
+          if (otherClients.length > 0) {
+            console.log('[SSE] Hay otros clientes en la sala. Solicitando estado del juego al host...');
+            this.gameService.sendRoomAction('requestGameState', { requesterId: this.gameService.userId });
+          } else {
+            console.log('[SSE] Sala sin otros clientes. Iniciando como host.');
+          }
+        }
       });
     });
 
@@ -897,7 +1244,22 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       this.ngZone.run(() => {
         const isPlayer = data.jugador !== undefined;
         const name = data.jugador ? data.jugador.nombre : 'SISTEMA';
-        
+
+        // Cerrar cuadro de diálogo para la pareja si el compañero responde
+        if (data.jugador && this.activeQuestion) {
+          const textoCanto = data.texto.toLowerCase();
+          if (textoCanto === 'quiero' || textoCanto === 'no quiero') {
+            const localPlayer = this.gameService.local;
+            if (localPlayer && localPlayer.pareja && data.jugador.pareja) {
+              // Si el que habló pertenece a la misma pareja que el jugador local
+              if (localPlayer.pareja.indice === data.jugador.pareja.indice) {
+                console.log(`[UI] Cerrando cuadro de diálogo de decisión porque tu compañero ${name} respondió: ${textoCanto.toUpperCase()}`);
+                this.activeQuestion = null;
+              }
+            }
+          }
+        }
+
         const item: LogItem = {
           id: Date.now() + Math.random(),
           nombre: name,
@@ -927,7 +1289,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         const jNombre = typeof jugador === 'string' ? jugador : jugador.nombre;
         const isPlayer = jugador && jugador.tipo === 'humano';
         const cardText = carta.tapada ? 'una carta' : `<b>${carta.numero} de ${carta.pinta}</b>`;
-        
+
         let cardThumb = '';
         try {
           const canvas = document.createElement('canvas');
@@ -1017,7 +1379,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     const checkbox = event.target as HTMLInputElement;
     this.gameService.autoDealer = checkbox.checked;
     localStorage.setItem('truco_auto_dealer', String(this.gameService.autoDealer));
-    
+
     if (this.gameService.autoDealer) {
       this.checkAndTriggerAutoDealerAction();
     } else {

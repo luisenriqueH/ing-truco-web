@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 import { CreditService } from '../services/credit.service';
 import { GameService } from '../services/game.service';
@@ -12,6 +12,24 @@ import { GameService } from '../services/game.service';
       
       <!-- Top HUD -->
       <header class="hud-top">
+        <div class="clients-dropdown-container glass-card" (click)="toggleClientsDropdown($event)">
+          <div class="dropdown-header">
+            🟢 {{ gameService.connectedClients.length }} En Línea
+            <span class="chevron" [class.open]="showClientsDropdown">▼</span>
+          </div>
+          <div class="dropdown-list" [class.hidden]="!showClientsDropdown">
+            <div class="dropdown-item heading">Clientes Conectados</div>
+            <div class="dropdown-item" *ngFor="let client of gameService.connectedClients">
+              <span class="client-dot" [class.me]="client.userId === gameService.userId"></span>
+              <span class="client-name">{{ client.name }}</span>
+              <span class="client-room-tag">{{ client.room }}</span>
+            </div>
+            <div class="dropdown-item empty" *ngIf="gameService.connectedClients.length === 0">
+              No hay otros clientes conectados
+            </div>
+          </div>
+        </div>
+
         <div class="coin-display glass-card">
           <img src="assets/models/coin.png" class="coin-icon" alt="coins">
           <span class="coin-amount">{{ coins }}</span>
@@ -25,14 +43,38 @@ import { GameService } from '../services/game.service';
           <h1 class="game-title">TRUCO VENEZOLANO</h1>
 
           <!-- Tab Bar Navigation -->
-          <div class="tabs-container">
+          <div class="tabs-container" *ngIf="!inLobby">
             <button class="tab-btn" [class.active]="activeTab === 'jugar'" (click)="selectTab('jugar')">🎮 JUGAR</button>
             <button class="tab-btn" [class.active]="activeTab === 'ia'" (click)="selectTab('ia')">🧠 GIMNASIO IA</button>
             <button class="tab-btn" [class.active]="activeTab === 'tienda'" (click)="selectTab('tienda')">🪙 TIENDA</button>
           </div>
 
           <!-- JUGAR TAB -->
-          <div class="tab-content-panel animate-fadeIn" *ngIf="activeTab === 'jugar'">
+          <div class="tab-content-panel animate-fadeIn" *ngIf="activeTab === 'jugar' && !inLobby">
+            <!-- Room Selector -->
+            <div class="room-selector-container">
+              <p class="deck-label">SELECCIONA TU SALA DE JUEGO</p>
+              <div class="room-list">
+                <div
+                  *ngFor="let room of ['Sala 1', 'Sala 2', 'Sala 3']"
+                  class="room-card"
+                  [class.selected]="selectedRoom === room"
+                  (click)="selectRoom(room)"
+                >
+                  <div class="room-card-header">
+                    <span class="room-icon">🏫</span>
+                    <span class="room-name">{{ room }}</span>
+                  </div>
+                  <div class="room-card-body">
+                    <div class="room-stat">
+                      <span class="stat-lbl">Jugadores:</span>
+                      <span class="stat-val font-bold">{{ getPlayerCount(room) }}/4</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Deck Selector -->
             <div class="deck-selector">
               <p class="deck-label">ELIGE TU BARAJA</p>
@@ -56,6 +98,61 @@ import { GameService } from '../services/game.service';
             <div class="play-action">
               <button class="btn-modern start-btn" (click)="startGame()">JUGAR AHORA</button>
               <div class="cost-tag">Costo: {{ COST_TO_PLAY }} CR</div>
+              
+              <button class="btn-modern btn-sandbox" (click)="startSandbox()">PIZARRA TÁCTICA 🎴</button>
+            </div>
+          </div>
+
+          <!-- LOBBY MESA (PASO PREVIO) -->
+          <div class="tab-content-panel lobby-panel animate-fadeIn" *ngIf="inLobby">
+            <h2 class="lobby-subtitle">🏫 Mesa de Juego: {{ selectedRoom }}</h2>
+            <p class="lobby-waiting-text">👥 Conectados a la mesa. Puedes esperar por otros jugadores reales o iniciar con IAs de relleno.</p>
+
+            <div class="lobby-table-container">
+              <div class="lobby-table">
+                <!-- Centro de la mesa con logo y efecto de pulso -->
+                <div class="lobby-table-center">
+                  <div class="table-logo">TRUCO</div>
+                  <span class="pulse-ring"></span>
+                </div>
+                
+                <!-- 4 Asientos (slots) -->
+                <div class="lobby-seat" *ngFor="let seat of getLobbySeats(); let idx = index" [ngClass]="'seat-' + idx">
+                  <!-- Luz indicadora de listo -->
+                  <div class="ready-light" [class.ready]="seat.ready"></div>
+
+                  <div class="seat-avatar" [style.background]="seat.avatarColor">
+                    {{ seat.initials }}
+                  </div>
+                  <div class="seat-info">
+                    <span class="seat-name">
+                      {{ seat.name }}
+                      <span *ngIf="seat.isHost" title="Host de la sala" style="margin-left: 4px; font-size: 0.85rem;">👑</span>
+                    </span>
+                    <span class="seat-badge" [class.human]="seat.isHuman" [class.ia]="!seat.isHuman">
+                      {{ seat.isHuman ? 'HUMANO' : 'IA' }}
+                    </span>
+                    <span class="seat-style" *ngIf="!seat.isHuman">{{ seat.estilo }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="lobby-actions">
+              <!-- Botón de Listo -->
+              <button class="btn-modern btn-ready" [class.ready]="gameService.localPlayerReady" (click)="toggleReady()">
+                {{ gameService.localPlayerReady ? '❌ CANCELAR LISTO' : '✅ ESTOY LISTO' }}
+              </button>
+
+              <!-- El Host ve el botón de iniciar partida (deshabilitado si hay humanos no listos) -->
+              <button class="btn-modern start-btn" *ngIf="gameService.isHost" [disabled]="!allHumansReady()" (click)="confirmStartGame()">INICIAR PARTIDA</button>
+
+              <!-- Los invitados ven un texto de espera -->
+              <div class="waiting-host-msg" *ngIf="!gameService.isHost" style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; font-weight: 700;">
+                ⏳ Esperando que el anfitrión inicie...
+              </div>
+
+              <button class="btn-modern btn-back" (click)="exitLobby()">VOLVER</button>
             </div>
           </div>
 
@@ -178,8 +275,180 @@ import { GameService } from '../services/game.service';
     .hud-top {
       position: absolute;
       top: 2rem;
+      left: 2rem;
       right: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       z-index: 10;
+      pointer-events: none;
+    }
+
+    .clients-dropdown-container {
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 99px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .dropdown-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chevron {
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    .chevron.open {
+      transform: rotate(180deg);
+    }
+    .dropdown-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      width: 250px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .dropdown-item {
+      padding: 10px 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+    }
+    .dropdown-item.heading {
+      font-weight: 800;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .dropdown-item.empty {
+      color: #64748b;
+      font-style: italic;
+    }
+    .client-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+    }
+    .client-dot.me {
+      background: #3b82f6;
+      box-shadow: 0 0 8px #3b82f6;
+    }
+    .client-name {
+      flex: 1;
+      text-align: left;
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .client-room-tag {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
+
+    /* Room Selector Styles */
+    .room-selector-container {
+      margin-bottom: 2.5rem;
+    }
+    .room-list {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .room-card {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 1.25rem;
+      width: 200px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      text-align: left;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+    }
+    .room-card:hover {
+      background: rgba(15, 23, 42, 0.8);
+      border-color: rgba(251, 191, 36, 0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+    .room-card.selected {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: #3b82f6;
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+    .room-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 0.5rem;
+    }
+    .room-icon {
+      font-size: 1.2rem;
+    }
+    .room-name {
+      font-weight: 700;
+      color: #fff;
+      font-size: 1rem;
+    }
+    .room-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .room-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .stat-val {
+      color: #fff;
+      font-weight: 600;
+    }
+    .font-bold {
+      font-weight: 700;
+    }
+    .active-game {
+      color: #10b981;
+    }
+    .score-val {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 800;
     }
 
     .glass-card {
@@ -330,6 +599,21 @@ import { GameService } from '../services/game.service';
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
+    }
+    .btn-sandbox {
+      font-size: 1.15rem;
+      padding: 0.75rem 2rem;
+      background: rgba(251, 191, 36, 0.1);
+      border-color: rgba(251, 191, 36, 0.4);
+      color: #fbbf24;
+      margin-top: 1rem;
+      box-shadow: 0 4px 15px rgba(251, 191, 36, 0.1);
+    }
+    .btn-sandbox:hover {
+      background: rgba(251, 191, 36, 0.25);
+      border-color: #fbbf24;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(251, 191, 36, 0.2);
     }
     .cost-tag {
       color: rgba(255,255,255,0.5);
@@ -567,9 +851,234 @@ import { GameService } from '../services/game.service';
       from { opacity: 0; transform: translateY(15px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* Lobby Styles */
+    .lobby-panel {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .lobby-subtitle {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .lobby-waiting-text {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      max-width: 600px;
+    }
+    .lobby-table-container {
+      width: 100%;
+      height: 350px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    .lobby-table {
+      width: 500px;
+      height: 250px;
+      background: radial-gradient(circle at center, #0f5132 0%, #082f1e 100%);
+      border: 12px solid #5c3d2e;
+      border-radius: 125px;
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.6);
+    }
+    .lobby-table-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 120px;
+      height: 60px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 2px dashed rgba(255, 255, 255, 0.1);
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .table-logo {
+      color: rgba(255, 255, 255, 0.15);
+      font-weight: 900;
+      font-size: 1.25rem;
+      letter-spacing: 4px;
+    }
+    .lobby-seat {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.5rem 0.75rem;
+      border-radius: 12px;
+      min-width: 160px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      transition: all 0.3s ease;
+    }
+    .lobby-seat:hover {
+      transform: scale(1.05);
+      border-color: #fbbf24;
+    }
+    
+    /* Seat Positioning around the oval table */
+    .seat-0 {
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .seat-1 {
+      right: -100px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .seat-2 {
+      top: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .seat-3 {
+      left: -100px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    
+    .seat-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .seat-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      font-size: 0.8rem;
+    }
+    .seat-name {
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seat-badge {
+      font-size: 0.65rem;
+      font-weight: 900;
+      padding: 1px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+    .seat-badge.human {
+      background: rgba(59, 130, 246, 0.2);
+      color: #3b82f6;
+    }
+    .seat-badge.ia {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+    .seat-style {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.4);
+      margin-top: 1px;
+    }
+    
+    .lobby-actions {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    .btn-back {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+    .btn-back:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #fff;
+      transform: translateY(-2px);
+    }
+    
+    .pulse-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 30px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      animation: pulse 2s infinite;
+      box-sizing: border-box;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.5; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+
+    /* Ready styles */
+    .ready-light {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 14px;
+      height: 14px;
+      background: #4b5563;
+      border: 2px solid #0f172a;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+    .ready-light.ready {
+      background: #10b981;
+      box-shadow: 0 0 12px #10b981;
+    }
+    .btn-ready {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+    .btn-ready:hover {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: #10b981;
+      color: #fff;
+    }
+    .btn-ready.ready {
+      background: #10b981;
+      border-color: #10b981;
+      color: #000;
+    }
+    .btn-ready.ready:hover {
+      background: #059669;
+      border-color: #059669;
+      color: #fff;
+    }
+    .start-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
   `]
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   readonly COST_TO_PLAY = 2;
   coins: number = 0;
   activeTab: 'jugar' | 'ia' | 'tienda' = 'jugar';
@@ -594,23 +1103,44 @@ export class HomeComponent implements OnInit {
   ];
 
   selectedDeck: string;
+  selectedRoom: string = 'Sala 1';
+  showClientsDropdown: boolean = false;
   characters: any[] = [];
+  inLobby: boolean = false;
 
   constructor(
     private creditService: CreditService,
     private router: Router,
-    private gameService: GameService
+    public gameService: GameService,
+    private ngZone: NgZone
   ) { }
 
   async ngOnInit() {
     this.coins = this.creditService.getCoins();
     this.selectedDeck = this.gameService.naipes;
-    
+    this.selectedRoom = this.gameService.currentRoom;
+
+    // Connect to global lobby by default
+    this.gameService.connectToLobby();
+
+    // Close dropdown on click outside
+    window.addEventListener('click', () => {
+      this.showClientsDropdown = false;
+    });
+
     // Load registered decks/skins dynamically
     await this.loadSkins();
 
     // Load persistent characters
     this.characters = await this.gameService.loadCharacters();
+  }
+
+  ngOnDestroy() {
+  }
+
+  getPlayerCount(roomName: string): number {
+    if (!this.gameService.connectedClients) return 0;
+    return this.gameService.connectedClients.filter(c => c.room === roomName).length;
   }
 
   async loadSkins() {
@@ -632,17 +1162,118 @@ export class HomeComponent implements OnInit {
     this.gameService.naipes = key;
   }
 
+  selectRoom(room: string) {
+    this.selectedRoom = room;
+    this.gameService.currentRoom = room;
+    localStorage.setItem('truco_current_room', room);
+    this.gameService.selectIAsForRoom();
+  }
+
+  toggleClientsDropdown(event: Event) {
+    event.stopPropagation();
+    this.showClientsDropdown = !this.showClientsDropdown;
+  }
+
   selectTab(tab: 'jugar' | 'ia' | 'tienda') {
     this.activeTab = tab;
   }
 
   startGame() {
+    this.inLobby = true;
+    this.gameService.connectToEvents(this.gameService.data.userID);
+
+    // Escuchar el inicio de partida del Host
+    this.gameService.onWebhookEventCallback = (payload) => {
+      this.ngZone.run(() => {
+        if (payload.event === 'game_action' && payload.data) {
+          if (payload.data.action === 'game_start') {
+            console.log('[Lobby] El anfitrión inició la partida. Redireccionando a la mesa...');
+            if (this.creditService.deductCoins(this.COST_TO_PLAY)) {
+              this.router.navigate(['/game']);
+            } else {
+              alert('El anfitrión inició la partida, pero no tienes suficientes monedas.');
+              this.exitLobby();
+            }
+          }
+        }
+      });
+    };
+  }
+
+  confirmStartGame() {
     if (this.creditService.deductCoins(this.COST_TO_PLAY)) {
+      // Emitir el inicio de la partida para arrastrar a los otros clientes
+      this.gameService.sendRoomAction('game_start', {});
       this.router.navigate(['/game']);
     } else {
       alert('No tienes suficientes monedas para jugar.');
+      this.inLobby = false;
       this.activeTab = 'tienda';
     }
+  }
+
+  exitLobby() {
+    this.inLobby = false;
+    this.gameService.sendRoomAction('client_disconnect', {});
+    this.gameService.connectToLobby();
+  }
+
+  getLobbySeats(): any[] {
+    const roomClients = this.gameService.connectedClients.filter(c => c.room === this.selectedRoom);
+    roomClients.sort((a, b) => a.userId.localeCompare(b.userId));
+
+    const seats = [];
+    const selected = this.gameService.selectedIAs && this.gameService.selectedIAs.length >= 3 ? this.gameService.selectedIAs : this.characters.slice(0, 3);
+
+    let iaPointer = 0;
+    for (let i = 0; i < 4; i++) {
+      if (roomClients[i]) {
+        const isMe = roomClients[i].userId === this.gameService.userId;
+        seats.push({
+          name: roomClients[i].name + (isMe ? ' (Tú)' : ''),
+          isHuman: true,
+          userId: roomClients[i].userId,
+          avatarColor: this.getCharacterGradient(roomClients[i].name),
+          initials: this.getInitials(roomClients[i].name),
+          ready: roomClients[i].ready || false,
+          isHost: roomClients[i].userId === this.gameService.hostUserId
+        });
+      } else {
+        const char = selected[iaPointer++ % selected.length] || { nombre: 'Invitado', estilo: 'IA' };
+        seats.push({
+          name: char.nombre,
+          isHuman: false,
+          userId: null,
+          avatarColor: this.getCharacterGradient(char.nombre),
+          initials: this.getInitials(char.nombre),
+          estilo: char.estilo,
+          ready: true // Las IAs siempre están listas
+        });
+      }
+    }
+    return seats;
+  }
+
+  toggleReady() {
+    this.gameService.localPlayerReady = !this.gameService.localPlayerReady;
+
+    // Actualizar nuestro propio estado en la lista local para respuesta visual inmediata
+    const me = this.gameService.connectedClients.find(c => c.userId === this.gameService.userId);
+    if (me) {
+      me.ready = this.gameService.localPlayerReady;
+    }
+
+    this.gameService.sendRoomAction('player_ready', { ready: this.gameService.localPlayerReady });
+  }
+
+  allHumansReady(): boolean {
+    const roomClients = this.gameService.connectedClients.filter(c => c.room === this.selectedRoom);
+    if (roomClients.length === 0) return false;
+    return roomClients.every(c => c.ready);
+  }
+
+  startSandbox() {
+    this.router.navigate(['/sandbox']);
   }
 
   buy(amount: number, pkgId: any) {

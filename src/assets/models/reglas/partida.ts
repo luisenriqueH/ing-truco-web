@@ -36,5 +36,6 @@ export class Partida {
         });
       }
     }
+    this.juego.sincronizarEstadoServidor();
   }
 }

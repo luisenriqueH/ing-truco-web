@@ -39,9 +39,9 @@ interface IJugador {
   label: Phaser.GameObjects.Text;
   highlight: Phaser.GameObjects.Graphics;
 
-  distancia: (spot: Phaser.Math.Vector2) => Phaser.Math.Vector2 ;
-  unsetAngle: (vector: Phaser.Math.Vector2) => Phaser.Math.Vector2 ;
-  setAngle: (vector: Phaser.Math.Vector2) => Phaser.Math.Vector2 ;
+  distancia: (spot: Phaser.Math.Vector2) => Phaser.Math.Vector2;
+  unsetAngle: (vector: Phaser.Math.Vector2) => Phaser.Math.Vector2;
+  setAngle: (vector: Phaser.Math.Vector2) => Phaser.Math.Vector2;
   next: (delta: number) => IJugador;
 
   setMano: () => void;
@@ -111,13 +111,15 @@ class Jugador implements IJugador {
     return this.setAngle(new Phaser.Math.Vector2(0, this.screen.h / 2));
   }
   get rotation(): number {
-    switch (this.indice) {
+    const localIdx = this.service.myIndexInRoom || 0;
+    const relativeIdx = (this.indice - localIdx + 4) % 4;
+    switch (relativeIdx) {
       case 0: return 0;
       case 1: return -Math.PI / 2;
       case 2: return -Math.PI;
       case 3: return Math.PI / 2;
 
-      default: return this.indice * Math.PI / 2;
+      default: return relativeIdx * Math.PI / 2;
     }
   }
   get baraja(): IBaraja {
@@ -214,7 +216,7 @@ class Jugador implements IJugador {
       this.label.setFontSize(12);
     }
     let menos = (80 * this.service.escala);
-    if (this.indice === 0) { menos = -menos; }
+    if (this.indice === this.service.myIndexInRoom) { menos = -menos; }
     if (!this.highlight) {
       this.highlight = this.main.add.graphics();
       this.highlight.setDepth(-1);
@@ -243,10 +245,10 @@ class Jugador implements IJugador {
     if (this.mano && this.mano.cartas) {
       this.mano.cartas.forEach((carta: ICarta) => {
         carta.setAlpha(value ? 1 : 0.8);
-        
+
         // SOLO modificar escala si la carta NO se está animando (ej: repartiendo o moviéndose)
         if (!this.main.tweens.isTweening(carta)) {
-          const baseScale = this.indice === 0 ? this.service.escala * 1.5 : this.service.escala;
+          const baseScale = this.indice === this.service.myIndexInRoom ? this.service.escala * 1.5 : this.service.escala;
           if (value) {
             carta.setScale(baseScale * 1.15);
             carta.setDepth(200);
@@ -293,12 +295,22 @@ class Jugador implements IJugador {
   // #region zone
   mesaDrop(carta: ICarta) {
     this.recibir(carta);
-    
+
     // IMPORTANTE: Registrar la jugada para que cuente al evaluar la ronda
     if (!this.juego.onJuego) {
       this.juego.partida.manoActual.registrarJugada(this, carta);
       console.log(`%c ${this.nombre} (Humano) juega ${carta.numero} de ${carta.pinta} `, 'color: #aaa;');
       this.service.phaser.emitter.emit('cardPlayed', { jugador: this, carta });
+
+      // Sincronizar acción si es el jugador local
+      if (this.indice === this.service.myIndexInRoom) {
+        this.service.sendRoomAction('cardPlayed', {
+          playerIndex: this.indice,
+          cardName: carta.nombre,
+          tapada: carta.tapada
+        });
+      }
+
       this.juego.proximoTurno();
     }
   }
@@ -399,7 +411,7 @@ class Jugador implements IJugador {
       const place = new Phaser.Math.Vector2(distancia.x, 0);
       place.add(this.unsetAngle(this.lugar));
       const spot = this.setAngle(place);
-      const baseScale = this.indice === 0 ? this.service.escala * 1.5 : this.service.escala;
+      const baseScale = this.indice === this.service.myIndexInRoom ? this.service.escala * 1.5 : this.service.escala;
       const props = {
         x: spot.x, y: spot.y,
         scale: baseScale,
@@ -436,6 +448,15 @@ class Jugador implements IJugador {
 
   async hablar(texto: string): Promise<void> {
     console.log(`%c [HABLAR] ${this.nombre}: "${texto}" `, 'color: #00ffcc; font-weight: bold;');
+
+    // Sincronizar canto si es el jugador local, o si es una IA y somos el Host (index 0)
+    if (this.indice === this.service.myIndexInRoom || (this.service.myIndexInRoom === 0 && this.tipo === 'ia')) {
+      this.service.sendRoomAction('hablar', {
+        playerIndex: this.indice,
+        texto
+      });
+    }
+
     await Promise.all([
       this.play(texto),
       this.juego.hablar({ jugador: this, texto })
@@ -473,7 +494,7 @@ class Jugador implements IJugador {
 
     // 3. Revelar y colocar todas las cartas una al lado de la otra
     const todasLasCartas = [...this.enMano];
-    
+
     if (todasLasCartas.length < 3) {
       console.warn(`%c ${this.nombre} intenta contar con ${todasLasCartas.length} cartas. Deberían ser 3. `, 'color: #ffaa00;');
     }
@@ -484,11 +505,11 @@ class Jugador implements IJugador {
       return new Promise<void>(resolve => {
         const areaMesa = this.mesa.zone;
         const spacing = 75 * this.service.escala; // Más compacto para evitar colisiones laterales
-        
+
         // Desplazamos más hacia afuera del centro para ganar espacio
         const offsetAlCentro = 120 * this.service.escala;
-        const centroX = areaMesa.x + Math.cos(this.rotation + Math.PI/2) * offsetAlCentro;
-        const centroY = areaMesa.y + Math.sin(this.rotation + Math.PI/2) * offsetAlCentro;
+        const centroX = areaMesa.x + Math.cos(this.rotation + Math.PI / 2) * offsetAlCentro;
+        const centroY = areaMesa.y + Math.sin(this.rotation + Math.PI / 2) * offsetAlCentro;
 
         // Centrar la fila de cartas respecto a la rotación del jugador
         const totalWidth = (todasLasCartas.length - 1) * spacing;
@@ -516,7 +537,7 @@ class Jugador implements IJugador {
 
   onTrucoPrompt(data: { jugador: any, nivel: number, texto: string }) {
     console.log(`%c [PROMPT] Mostrando overlay de Truco al Humano `, 'color: #00ffff;');
-    
+
     // El sistema de UI ya tiene un 'mostrarPregunta' que recibe texto y un callback booleano
     // Para el Truco, usaremos el mismo patrón:
     const nivelNombre = this.juego.truco.getNombreNivel(data.nivel);
@@ -596,10 +617,10 @@ class Jugador implements IJugador {
       if (this.speech && (this.speech as any).markers && (this.speech as any).markers[marker]) {
         const markerInfo = (this.speech as any).markers[marker];
         const durationMs = (markerInfo.duration || 0.8) * 1000;
-        
+
         console.log(`%c [SPEECH] ${this.nombre} reproduce "${marker}" (${durationMs}ms) `, 'color: #ffaa00;');
         this.speech.play(marker);
-        
+
         await new Promise<void>((resolve) => {
           setTimeout(resolve, durationMs);
         });
@@ -660,25 +681,25 @@ class Jugador implements IJugador {
   cogerAuto(carta: ICarta, indice: number): Promise<void> {
     return new Promise((resolve) => {
       // Ajustar espaciado según la escala (200 para local, 150 para otros)
-      const spacing = this.indice === 0 ? 150 : 100;
-      const baseScale = this.indice === 0 ? this.service.escala * 1.5 : this.service.escala;
-      
+      const spacing = this.indice === this.service.myIndexInRoom ? 150 : 100;
+      const baseScale = this.indice === this.service.myIndexInRoom ? this.service.escala * 1.5 : this.service.escala;
+
       const place = new Phaser.Math.Vector2((indice - 1) * spacing * this.service.escala, 0);
       const spot = this.setAngle(place);
-      const props = { 
-        x: spot.x, 
-        y: spot.y, 
-        rotation: this.rotation, 
+      const props = {
+        x: spot.x,
+        y: spot.y,
+        rotation: this.rotation,
         scale: baseScale,
         depth: 150
       };
       // console.log('cogerAuto', this.nombre, carta.nombre, props, this.mano.zone);
       this.dragAuto(carta, props, this.mano.zone)
         .then(() => {
-          if (this.tipo === 'humano') {
+          if (this.indice === this.service.myIndexInRoom) {
             carta.destapar(); // Mostrar al jugador local
           } else {
-            carta.tapar();    // Ocultar para IAs
+            carta.tapar();    // Ocultar para rivales y IAs
           }
           resolve()
         });

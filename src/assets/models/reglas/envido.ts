@@ -4,6 +4,9 @@ import { Juego } from "./juego";
 import { IA_Jugador } from "../jugadores/ia_jugador";
 
 export class Envido {
+  public florRespuestas: Map<number, string> = new Map();
+  public envidoRespuestas: Map<number, string> = new Map();
+
   constructor(private juego: Juego) {}
 
   /**
@@ -140,6 +143,19 @@ export class Envido {
         puntos: this.calcularPuntos(jugador) 
       });
     }
+
+    // Registrar respuestas a Flor/Envido para sincronización remota
+    if (t.includes('aquí está mi flor') || t.includes('aqui esta mi flor')) {
+      this.florRespuestas.set(jugador.indice, 'mostrar');
+    } else if (t.includes('mi flor no es válida') || t.includes('mi flor no es valida')) {
+      this.florRespuestas.set(jugador.indice, 'invalida');
+    } else if (t.includes('paso de mostrar')) {
+      this.florRespuestas.set(jugador.indice, 'paso');
+    } else if (t.includes('tengo ')) {
+      this.envidoRespuestas.set(jugador.indice, 'mostrar');
+    } else if (t === 'paso') {
+      this.envidoRespuestas.set(jugador.indice, 'paso');
+    }
   }
 
   /**
@@ -148,6 +164,9 @@ export class Envido {
   async resolver(): Promise<void> {
     console.log('%c --- RESOLVIENDO ENVIDO Y FLOR (Módulo Envido) --- ', 'background: #004488; color: #fff;');
     
+    this.florRespuestas.clear();
+    this.envidoRespuestas.clear();
+
     const dealerIdx = this.juego.dealer.indice;
     const numJugadores = this.juego.jugadores.length;
     let mejorPuntajeFlor = -1;
@@ -164,17 +183,24 @@ export class Envido {
           let quiereMostrar = false;
           const pts = this.calcularPuntos(jugador);
           const esValida = this.tieneFlor(jugador);
-
-          const preguntar = (texto: string): Promise<boolean> => {
-            return new Promise(resolve => {
-              this.juego.service.phaser.emitter.emit('mostrarPregunta', { texto, callback: resolve });
-            });
-          };
+          const isLocal = jugador.indice === this.juego.service.myIndexInRoom;
 
           if (jugador.tipo === 'ia') {
             quiereMostrar = true; 
-          } else {
+          } else if (isLocal) {
+            const preguntar = (texto: string): Promise<boolean> => {
+              return new Promise(resolve => {
+                this.juego.service.phaser.emitter.emit('mostrarPregunta', { texto, callback: resolve });
+              });
+            };
             quiereMostrar = await preguntar(`Tienes Flor (${pts} pts). ¿Deseas mostrarla para sumar puntos?`);
+          } else {
+            console.log(`%c [FLOR] Esperando decisión de Flor del jugador remoto ${jugador.nombre}... `, 'color: #ffaa00;');
+            while (!this.florRespuestas.has(jugador.indice)) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            const respuesta = this.florRespuestas.get(jugador.indice);
+            quiereMostrar = (respuesta === 'mostrar' || respuesta === 'invalida');
           }
 
           if (quiereMostrar && esValida) {
@@ -200,9 +226,17 @@ export class Envido {
           await this.juego.hablar({ texto: `¡Flor para el equipo de ${ganador.nombre}! (+3)`, jugador: ganador });
           this.juego.partida.sumarPuntos(ganador.pareja.indice, 3);
         } else {
-          if (ganadorFlor) {
-            await this.juego.hablar({ texto: `¡Gana la mejor Flor: ${ganadorFlor.nombre}! (+6)`, jugador: ganadorFlor });
-            this.juego.partida.sumarPuntos(ganadorFlor.pareja.indice, 6);
+          // Ambos equipos tienen flor
+          if (this.juego.envidoEstado === 'RECHAZADO') {
+            const equipoGanador = this.juego.equipoQueCantoEnvido;
+            await this.juego.hablar({ texto: `¡Flor no querida! Puntos para el equipo ${equipoGanador + 1} (+3)` });
+            this.juego.partida.sumarPuntos(equipoGanador, 3);
+          } else {
+            const ptsGana = this.juego.envidoEstado === 'ACEPTADO' ? 6 : 3;
+            if (ganadorFlor) {
+              await this.juego.hablar({ texto: `¡Gana la mejor Flor: ${ganadorFlor.nombre}! (+${ptsGana})`, jugador: ganadorFlor });
+              this.juego.partida.sumarPuntos(ganadorFlor.pareja.indice, ptsGana);
+            }
           }
         }
         this.juego.envidoEstado = 'NADA';
@@ -222,11 +256,12 @@ export class Envido {
       const idx = (dealerIdx + 1 + i) % numJugadores;
       const jugador = this.juego.jugadores[idx];
       const pts = this.calcularPuntos(jugador);
+      const isLocal = jugador.indice === this.juego.service.myIndexInRoom;
       
       let quiereMostrar = false;
       if (jugador.tipo === 'ia') {
         quiereMostrar = await (jugador as IA_Jugador).decidirMostrarEnvido(mejorPuntaje);
-      } else {
+      } else if (isLocal) {
         const preguntar = (texto: string): Promise<boolean> => {
           return new Promise(resolve => {
             this.juego.service.phaser.emitter.emit('mostrarPregunta', { texto, callback: resolve });
@@ -236,6 +271,13 @@ export class Envido {
           `¿Quieres mostrar tus ${pts} puntos para el Envido?` : 
           `No se cantó envido. ¿Deseas mostrar tus ${pts} puntos de todas formas?`;
         quiereMostrar = await preguntar(msg);
+      } else {
+        console.log(`%c [ENVIDO] Esperando decisión de Envido del jugador remoto ${jugador.nombre}... `, 'color: #ffaa00;');
+        while (!this.envidoRespuestas.has(jugador.indice)) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        const respuesta = this.envidoRespuestas.get(jugador.indice);
+        quiereMostrar = (respuesta === 'mostrar');
       }
 
       if (quiereMostrar) {

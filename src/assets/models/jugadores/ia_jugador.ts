@@ -165,26 +165,44 @@ export class IA_Jugador extends Jugador {
   // Lógica para cantar Envido proactivamente
   async decidirCantarEnvidoProactivo(): Promise<string | null> {
     const mano = this.juego.partida.manoActual;
-    // Solo en primera ronda, si la mano está activa y si no se ha cantado envido aún
     if (!this.juego.manoEnCurso) return null;
-    if (mano.rondaActual !== 0 || this.juego.envidoEstado !== 'NADA') return null;
 
-    const pts = this.juego.envido.calcularPuntos(this);
-    const agresividad = this.personaje.stats.agresividad;
-    const bluff = this.personaje.stats.bluff;
+    const tieneFlorPropia = this.juego.envido.tieneFlor(this);
+    const algunaFlorCantada = this.juego.floresCantadas.size > 0;
+    const teamsWithFlor = Array.from(this.juego.floresCantadas).map(idx => this.juego.jugadores[idx].pareja.indice);
+    const bothTeamsHaveFlor = teamsWithFlor.includes(0) && teamsWithFlor.includes(1);
 
-    // Si tiene muy buenos puntos, canta envido
-    if (pts >= 26) {
-      return 'envido';
-    }
-    // Si tiene puntos decentes (20-25), canta según agresividad
-    if (pts >= 20 && Math.random() < agresividad) {
-      return 'envido';
-    }
-    // Bluff: si tiene pocos puntos, pero alto bluff/agresividad
-    if (pts < 20 && Math.random() < (bluff * agresividad * 0.2)) {
-      console.log(`%c [IA-BLUFF] ${this.nombre} decide cantar Envido de farol con ${pts} pts `, 'color: #ff00ff;');
-      return 'envido';
+    if (mano.rondaActual === 0) {
+      if (tieneFlorPropia || algunaFlorCantada || this.juego.envidoEstado !== 'NADA') {
+        return null;
+      }
+
+      const pts = this.juego.envido.calcularPuntos(this);
+      const agresividad = this.personaje.stats.agresividad;
+      const bluff = this.personaje.stats.bluff;
+
+      // Si tiene muy buenos puntos, canta envido
+      if (pts >= 26) {
+        return 'envido';
+      }
+      // Si tiene puntos decentes (20-25), canta según agresividad
+      if (pts >= 20 && Math.random() < agresividad) {
+        return 'envido';
+      }
+      // Bluff: si tiene pocos puntos, pero alto bluff/agresividad
+      if (pts < 20 && Math.random() < (bluff * agresividad * 0.2)) {
+        console.log(`%c [IA-BLUFF] ${this.nombre} decide cantar Envido de farol con ${pts} pts `, 'color: #ff00ff;');
+        return 'envido';
+      }
+    } else if (mano.rondaActual === 1) {
+      // Envido de Flores: solo si ambos equipos tienen Flor
+      if (bothTeamsHaveFlor && this.juego.envidoEstado === 'NADA') {
+        const pts = this.juego.envido.calcularPuntos(this);
+        const agresividad = this.personaje.stats.agresividad;
+        if (pts >= 33 || (pts >= 28 && Math.random() < agresividad)) {
+          return 'envido';
+        }
+      }
     }
 
     return null;

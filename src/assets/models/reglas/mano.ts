@@ -110,7 +110,7 @@ export class Mano {
     this.cartasJugadas = [];
   }
 
-  async repartir(repartidor?: IJugador) {
+  async repartir(repartidor?: IJugador, presetIndices?: number[]) {
     if (this.activa) return;
     this.activa = true;
     this.juego.onJuego = true; // Sincronización con el estado global
@@ -119,8 +119,10 @@ export class Mano {
       this.juego.dealer = repartidor;
     }
 
-    const indices = Phaser.Utils.Array.NumberArray(0, 39);
-    Phaser.Utils.Array.Shuffle(indices);
+    const indices = presetIndices ? [...presetIndices] : Phaser.Utils.Array.NumberArray(0, 39);
+    if (!presetIndices) {
+      Phaser.Utils.Array.Shuffle(indices);
+    }
 
     const dealer = this.juego.dealer || this.juego.jugadores[0];
     const numJugadores = this.juego.jugadores.length;

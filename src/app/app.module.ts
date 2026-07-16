@@ -11,6 +11,7 @@ const routes: Routes = [
   { path: 'home', component: HomeComponent },
   { path: 'game', component: GameComponent },
   { path: 'test', component: GameComponent },
+  { path: 'sandbox', component: GameComponent },
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: '**', redirectTo: '/home' }
 ];

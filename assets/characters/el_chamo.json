@@ -1,13 +1,13 @@
 {
   "nombre": "El Chamo",
   "estilo": "Equilibrado",
-  "partidasJugadas": 2,
-  "partidasGanadas": 2,
-  "xp": 60,
+  "partidasJugadas": 4,
+  "partidasGanadas": 4,
+  "xp": 120,
   "stats": {
-    "agresividad": 0.504,
+    "agresividad": 0.508,
     "paciencia": 0.5,
-    "bluff": 0.41000000000000003,
-    "inteligencia": 0.61
+    "bluff": 0.42000000000000004,
+    "inteligencia": 0.62
   }
 }

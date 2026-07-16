@@ -79,6 +79,25 @@ async function startServer() {
     '.wasm': 'application/wasm'
   };
 
+  const clients = new Map(); // userId -> { res, userId, name, room }
+  const roomStates = new Map(); // room -> snapshot
+
+  function broadcastClientList() {
+    const list = Array.from(clients.values()).map(c => ({
+      userId: c.userId,
+      name: c.name,
+      room: c.room
+    }));
+    const message = JSON.stringify({ event: 'clients_list', clients: list });
+    for (const client of clients.values()) {
+      try {
+        client.res.write(`data: ${message}\n\n`);
+      } catch (err) {
+        console.error(`Failed to send to client ${client.userId}:`, err);
+      }
+    }
+  }
+
   const server = http.createServer(async (req, res) => {
     const parsedUrl = url.parse(req.url, true);
     let filePath = parsedUrl.pathname;
@@ -91,6 +110,144 @@ async function startServer() {
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    if (filePath === '/api/connect' && req.method === 'GET') {
+      const userId = parsedUrl.query.userId || Math.random().toString(36).substr(2, 9);
+      const name = parsedUrl.query.name || 'Anonymous';
+      const room = parsedUrl.query.room || 'Sala 1';
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+      });
+
+      // Keep connection alive with a periodic heartbeat
+      const heartbeatInterval = setInterval(() => {
+        try {
+          res.write(': heartbeat\n\n');
+        } catch (e) {
+          clearInterval(heartbeatInterval);
+        }
+      }, 30000);
+
+      // Send initial connection confirmation
+      res.write(`data: ${JSON.stringify({ event: 'connected', userId, name, room })}\n\n`);
+
+      if (roomStates.has(room)) {
+        console.log(`[STATE] Pushing last saved state of ${room} to new client ${name}`);
+        res.write(`data: ${JSON.stringify({ event: 'game_action', data: { action: 'gameStateSnapshot', targetUserId: userId, snapshot: roomStates.get(room) } })}\n\n`);
+      }
+
+      const clientInfo = { res, userId, name, room };
+      clients.set(userId, clientInfo);
+      console.log(`[SSE] Client connected: ${name} (${userId}) in ${room}`);
+
+      broadcastClientList();
+
+      req.on('close', () => {
+        clearInterval(heartbeatInterval);
+        clients.delete(userId);
+        console.log(`[SSE] Client disconnected: ${name} (${userId})`);
+        
+        // Limpiar el estado de la sala si queda vacía
+        const roomClients = Array.from(clients.values()).filter(c => c.room === room);
+        if (roomClients.length === 0) {
+          roomStates.delete(room);
+          console.log(`[STATE] Room ${room} is empty. Cleared game state.`);
+        }
+        
+        broadcastClientList();
+      });
+      return;
+    }
+
+    if (filePath === '/api/clients' && req.method === 'GET') {
+      const list = Array.from(clients.values()).map(c => ({
+        userId: c.userId,
+        name: c.name,
+        room: c.room
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(list));
+      return;
+    }
+
+    if (filePath === '/api/rooms' && req.method === 'GET') {
+      // Build a map of player counts per room from connected clients
+      const playerCounts = {};
+      for (const client of clients.values()) {
+        playerCounts[client.room] = (playerCounts[client.room] || 0) + 1;
+      }
+
+      // Merge room game states with live player counts
+      const data = {};
+      // Include all known rooms (from states and from connected clients)
+      const allRooms = new Set([...roomStates.keys(), ...Object.keys(playerCounts)]);
+      for (const room of allRooms) {
+        const state = roomStates.get(room);
+        data[room] = {
+          playerCount: playerCounts[room] || 0,
+          active: state ? state.manoEnCurso : false,
+          puntos: state ? state.puntos : null
+        };
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
+
+    if (filePath === '/api/webhook' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body);
+          const targetType = payload.targetType || 'all'; // 'client', 'room', or 'all'
+          const targetId = payload.targetId;
+          const eventName = payload.eventName || 'webhook_event';
+          const data = payload.data || {};
+
+          if (eventName === 'game_action' && data.action === 'updateGameState') {
+            roomStates.set(targetId, data.snapshot);
+            console.log(`[STATE] Room ${targetId} game state updated.`);
+          }
+
+          let sentCount = 0;
+          const message = JSON.stringify({ event: eventName, data });
+
+          for (const client of clients.values()) {
+            let matches = false;
+            if (targetType === 'all') {
+              matches = true;
+            } else if (targetType === 'client' && client.userId === targetId) {
+              matches = true;
+            } else if (targetType === 'room' && client.room === targetId) {
+              matches = true;
+            }
+
+            if (matches) {
+              try {
+                client.res.write(`data: ${message}\n\n`);
+                sentCount++;
+              } catch (e) {
+                console.error(`Error sending message to ${client.userId}:`, e);
+              }
+            }
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, sentCount }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
       return;
     }
 
@@ -176,7 +333,7 @@ async function startServer() {
     } else if (filePath === '/' || filePath === '') {
       filePath = '/start/index.html';
     } else if (filePath.startsWith('/tools/')) {
-       // Allow as is
+      // Allow as is
     } else {
       // Check if file exists in root FIRST (for package.json, etc)
       const rootPath = path.join(__dirname, filePath);
@@ -221,7 +378,7 @@ async function main() {
   } else {
     // Standard execution
     await runBuild(currentVersion);
-    
+
     if (isOnce) {
       console.log('Build complete (once mode).');
       process.exit(0);
