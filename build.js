@@ -8,7 +8,7 @@ const url = require('url');
 const isWatch = process.argv.includes('--watch');
 const isServe = process.argv.includes('--serve');
 
-const pkgPath = 'package.json';
+const pkgPath = path.join(__dirname, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
 // Parse --version=X.X.X argument
@@ -20,9 +20,9 @@ function getArgVersion() {
 let currentVersion = getArgVersion();
 
 const config = {
-  entryPoints: ['src/main.ts'],
+  entryPoints: [path.join(__dirname, 'src/main.ts')],
   bundle: true,
-  outfile: 'start/main.bundle.js',
+  outfile: path.join(__dirname, 'start/main.bundle.js'),
   minify: !isServe && !isWatch,
   sourcemap: isServe || isWatch,
   platform: 'browser',
@@ -70,7 +70,7 @@ async function runBuild(v) {
 }
 
 async function startServer() {
-  const PORT = 8081;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
   const mimeTypes = {
     '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
     '.png': 'image/png', '.jpg': 'image/jpg', '.gif': 'image/gif', '.svg': 'image/svg+xml',

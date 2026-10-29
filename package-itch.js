@@ -27,7 +27,7 @@ async function buildItch() {
   // 1. Ejecutar npm run build para asegurar que la última versión del código está compilada
   console.log('Compilando el proyecto (npm run build)...');
   try {
-    execSync('npm run build -- --once', { stdio: 'inherit' });
+    execSync('node build.js --once', { cwd: __dirname, stdio: 'inherit' });
   } catch (error) {
     console.error('Error al compilar:', error);
     process.exit(1);
