@@ -32,6 +32,11 @@ interface LogItem {
           <div class="bet-container">
             <div class="bet-label">APUESTA</div>
             <div class="bet-value">{{ betStatus }}</div>
+            <!-- Ficha del Dealer -->
+            <div class="dealer-chip-container" *ngIf="dealerName" title="Le toca repartir a: {{ dealerName }}">
+              <div class="dealer-chip">D</div>
+              <div class="dealer-chip-label">{{ dealerName }}</div>
+            </div>
           </div>
           <div class="score-box">
             <div class="score-label">ELLOS</div>
@@ -120,7 +125,7 @@ interface LogItem {
               </div>
             </div>
 
-            <button class="btn-home" (click)="volverAlInicio()">VOLVER AL INICIO</button>
+            <button class="btn-home" (click)="volverAlInicio()">VOLVER AL LOBBY</button>
           </div>
         </div>
 
@@ -385,6 +390,48 @@ interface LogItem {
       border-radius: 10px;
       font-size: 1.25rem;
       border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Ficha del Dealer */
+    .dealer-chip-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      pointer-events: none;
+    }
+    .dealer-chip {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fde68a, #d97706);
+      border: 2px solid #92400e;
+      color: #1c0a00;
+      font-weight: 900;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.3);
+      letter-spacing: 0;
+      animation: dealerPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes dealerPop {
+      from { transform: scale(0.4); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .dealer-chip-label {
+      color: #fbbf24;
+      font-size: 0.6rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
     }
 
     /* Log de eventos */
@@ -817,6 +864,9 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   scoreEllos = '0 / 12';
   betStatus = '1 | 0 - 0';
 
+  // Dealer chip
+  dealerName: string = '';
+
   // Toggle Menus
   showCardMenu = false;
   showVoiceMenu = false;
@@ -955,6 +1005,11 @@ export class GameComponent implements AfterViewInit, OnDestroy {
                   this.gameService.initialSnapshot = snapshotToApply;
                 }
               }
+              break;
+
+            case 'return_to_lobby':
+              console.log('[SSE] Acción recibida: return_to_lobby. Limpiando y volviendo al lobby...');
+              this.ejecutarRetornoLobby();
               break;
           }
           this.cdr.detectChanges();
@@ -1146,6 +1201,17 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     this.betStatus = `${valorMano} | ${r1} - ${r2}`;
   }
 
+  actualizarDealer() {
+    const juego = this.gameService.juego;
+    if (!juego || !juego.dealer) {
+      this.dealerName = '';
+      return;
+    }
+    const dealer = juego.dealer;
+    const isMe = dealer.indice === this.gameService.myIndexInRoom;
+    this.dealerName = isMe ? 'Tú' : dealer.nombre;
+  }
+
   setupGuiSubscriptions() {
     const emitter = this.gameService.phaser.emitter;
     if (!emitter) return;
@@ -1183,6 +1249,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         this.showContarBtn = false;
         this.showRecogerBtn = false;
         this.actualizarMarcador();
+        this.actualizarDealer();
         this.cdr.detectChanges();
         this.checkAndTriggerAutoDealerAction();
       });
@@ -1211,6 +1278,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     // Auto Dealer Initialization
     emitter.on('juegoInicializado', () => {
       this.ngZone.run(() => {
+        this.actualizarDealer();
         this.checkAndTriggerAutoDealerAction();
         // Si hay un snapshot guardado al conectar (enviado por el servidor al conectar), aplicarlo
         if (this.gameService.initialSnapshot) {
@@ -1349,6 +1417,15 @@ export class GameComponent implements AfterViewInit, OnDestroy {
           titulo: esNosotrosGanador ? '¡VICTORIA!' : 'FIN DEL JUEGO',
           subtitulo: esNosotrosGanador ? `¡Han ganado la partida! (+${REWARD_AMOUNT} CR)` : 'El otro equipo ha ganado.'
         };
+
+        // Archivar la partida automáticamente
+        this.gameService.archiveMatch({
+          ganador: data.ganador,
+          puntos: data.puntos,
+          esNosotrosGanador,
+          jugadores: this.gameService.connectedClients.map(c => ({ id: c.userId, name: c.name }))
+        });
+
         this.cdr.detectChanges();
       });
     });
@@ -1371,8 +1448,15 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   }
 
   volverAlInicio() {
-    window.location.href = '/#/home';
-    window.location.reload();
+    // Si somos host o estamos en partida multijugador, avisar a los demás clientes
+    this.gameService.sendRoomAction('return_to_lobby', {});
+    this.ejecutarRetornoLobby();
+  }
+
+  private ejecutarRetornoLobby() {
+    this.gameService.cleanUpGameState();
+    // Redirigir a Home con parámetro de lobby para reingresar a la sala limpia
+    this.router.navigate(['/home'], { queryParams: { lobby: 'true', room: this.gameService.currentRoom } });
   }
 
   toggleAutoDealer(event: Event) {

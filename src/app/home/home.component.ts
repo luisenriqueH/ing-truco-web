@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CreditService } from '../services/credit.service';
 import { GameService } from '../services/game.service';
 
@@ -17,7 +17,7 @@ import { GameService } from '../services/game.service';
             🟢 {{ gameService.connectedClients.length }} En Línea
             <span class="chevron" [class.open]="showClientsDropdown">▼</span>
           </div>
-          <div class="dropdown-list" [class.hidden]="!showClientsDropdown">
+          <div class="dropdown-list" *ngIf="showClientsDropdown" (click)="$event.stopPropagation()">
             <div class="dropdown-item heading">Clientes Conectados</div>
             <div class="dropdown-item" *ngFor="let client of gameService.connectedClients">
               <span class="client-dot" [class.me]="client.userId === gameService.userId"></span>
@@ -256,32 +256,41 @@ import { GameService } from '../services/game.service';
     .home-wrapper {
       position: relative;
       width: 100vw;
-      height: 100vh;
+      min-height: 100vh;
       background: url('assets/bg_home.png') center center / cover no-repeat;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      overflow: hidden;
+      justify-content: flex-start;
+      padding-top: 6.5rem;
+      padding-bottom: 3.5rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      box-sizing: border-box;
     }
 
     .bg-overlay {
-      position: absolute;
+      position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: radial-gradient(circle at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%);
       z-index: 1;
+      pointer-events: none;
     }
 
     .hud-top {
-      position: absolute;
-      top: 2rem;
+      position: fixed;
+      top: 1.5rem;
       left: 2rem;
       right: 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      z-index: 10;
+      z-index: 20;
       pointer-events: none;
+    }
+
+    .hud-top > * {
+      pointer-events: auto;
     }
 
     .clients-dropdown-container {
@@ -372,20 +381,23 @@ import { GameService } from '../services/game.service';
 
     /* Room Selector Styles */
     .room-selector-container {
-      margin-bottom: 2.5rem;
+      margin-bottom: 0rem;
     }
     .room-list {
       display: flex;
       gap: 1.5rem;
-      justify-content: center;
-      flex-wrap: wrap;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      overflow-x: scroll;
+      padding: 5px;
+      margin: 0px 10px;
     }
     .room-card {
       background: rgba(15, 23, 42, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
-      padding: 1.25rem;
-      width: 200px;
+      padding: 10px;
+      min-width: 120px;
       cursor: pointer;
       transition: all 0.3s ease;
       display: flex;
@@ -484,6 +496,7 @@ import { GameService } from '../services/game.service';
     }
 
     .main-content {
+      margin: auto 0;
       z-index: 5;
       text-align: center;
       width: 100%;
@@ -494,10 +507,25 @@ import { GameService } from '../services/game.service';
       max-width: 1200px;
     }
 
+    .hero-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .tab-content-panel {
+      height: min(600px, calc(100vh - 400px));
+      overflow-y: scroll;
+      gap: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
     .game-title {
-      font-size: 4rem;
+      font-size: 2rem;
       font-weight: 800;
-      margin-bottom: 2rem;
+      margin: 0rem;
       letter-spacing: 0.15em;
       text-shadow: 0 10px 20px rgba(0,0,0,0.5);
       background: linear-gradient(to bottom, #fff, #94a3b8);
@@ -510,7 +538,6 @@ import { GameService } from '../services/game.service';
       display: flex;
       justify-content: center;
       gap: 1rem;
-      margin-bottom: 2rem;
       z-index: 10;
       position: relative;
     }
@@ -539,8 +566,9 @@ import { GameService } from '../services/game.service';
     }
 
     .start-btn {
-      font-size: 2rem;
-      padding: 1.25rem 4rem;
+      font-size: 1rem;
+      padding: 1rem 2rem;
+      width: min(200px,40%);
     }
 
     .store-tab-container {
@@ -587,11 +615,11 @@ import { GameService } from '../services/game.service';
     .pkg-price { font-size: 1rem; color: #10b981; font-weight: 600; }
 
     .footer-info {
-      position: absolute;
-      bottom: 1.5rem;
+      margin-top: 2rem;
       color: rgba(255,255,255,0.3);
       font-size: 0.75rem;
       letter-spacing: 0.1em;
+      z-index: 5;
     }
 
     .play-action {
@@ -625,7 +653,7 @@ import { GameService } from '../services/game.service';
 
     /* ── Deck Selector ── */
     .deck-selector {
-      margin-bottom: 2.5rem;
+      margin: 0rem;
     }
     .deck-label {
       font-size: 0.75rem;
@@ -697,8 +725,6 @@ import { GameService } from '../services/game.service';
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
       gap: 1.5rem;
-      max-height: 55vh;
-      overflow-y: auto;
       padding: 0.5rem;
       scrollbar-width: thin;
       scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
@@ -862,6 +888,7 @@ import { GameService } from '../services/game.service';
     }
     .lobby-subtitle {
       font-size: 2rem;
+      line-height: 2rem;
       font-weight: 800;
       color: #fff;
       margin-bottom: 0.5rem;
@@ -883,7 +910,7 @@ import { GameService } from '../services/game.service';
       position: relative;
     }
     .lobby-table {
-      width: 500px;
+      width: min(80%,500px);
       height: 250px;
       background: radial-gradient(circle at center, #0f5132 0%, #082f1e 100%);
       border: 12px solid #5c3d2e;
@@ -926,7 +953,7 @@ import { GameService } from '../services/game.service';
       transition: all 0.3s ease;
     }
     .lobby-seat:hover {
-      transform: scale(1.05);
+      transform: translateX(-50%) scale(1.05);
       border-color: #fbbf24;
     }
     
@@ -1010,6 +1037,7 @@ import { GameService } from '../services/game.service';
       background: rgba(239, 68, 68, 0.1);
       border-color: rgba(239, 68, 68, 0.4);
       color: #f87171;
+      width: min(100px,30%);
     }
     .btn-back:hover {
       background: rgba(239, 68, 68, 0.25);
@@ -1054,6 +1082,7 @@ import { GameService } from '../services/game.service';
       background: rgba(16, 185, 129, 0.1);
       border-color: rgba(16, 185, 129, 0.4);
       color: #34d399;
+      width: min(100px,30%);
     }
     .btn-ready:hover {
       background: rgba(16, 185, 129, 0.25);
@@ -1111,6 +1140,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   constructor(
     private creditService: CreditService,
     private router: Router,
+    private route: ActivatedRoute,
     public gameService: GameService,
     private ngZone: NgZone
   ) { }
@@ -1120,13 +1150,29 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.selectedDeck = this.gameService.naipes;
     this.selectedRoom = this.gameService.currentRoom;
 
-    // Connect to global lobby by default
-    this.gameService.connectToLobby();
+    // Verificar si venimos de terminar una partida para ir directo a la mesa/lobby de la sala
+    this.route.queryParams.subscribe(params => {
+      if (params && params['lobby'] === 'true') {
+        if (params['room']) {
+          this.selectRoom(params['room']);
+        }
+        console.log('[Home] Retornando a lobby de sala limpia tras finalizar partida:', this.selectedRoom);
+        this.startGame();
+      } else {
+        // Connect to global lobby by default
+        this.gameService.connectToLobby();
+      }
+    });
 
     // Close dropdown on click outside
-    window.addEventListener('click', () => {
-      this.showClientsDropdown = false;
-    });
+    this.outsideClickHandler = () => {
+      if (this.showClientsDropdown) {
+        this.ngZone.run(() => {
+          this.showClientsDropdown = false;
+        });
+      }
+    };
+    window.addEventListener('click', this.outsideClickHandler);
 
     // Load registered decks/skins dynamically
     await this.loadSkins();
@@ -1135,7 +1181,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.characters = await this.gameService.loadCharacters();
   }
 
+  private outsideClickHandler: any;
+
   ngOnDestroy() {
+    if (this.outsideClickHandler) {
+      window.removeEventListener('click', this.outsideClickHandler);
+    }
   }
 
   getPlayerCount(roomName: string): number {

@@ -479,4 +479,35 @@ export class GameService {
       this.game = undefined;
     }
   }
+
+  archiveMatch(matchData: any) {
+    try {
+      const historyStr = localStorage.getItem('truco_historial') || '[]';
+      const history = JSON.parse(historyStr);
+      history.unshift({
+        id: `match_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        room: this.currentRoom,
+        ...matchData
+      });
+      // Mantener los últimos 30 registros
+      if (history.length > 30) history.pop();
+      localStorage.setItem('truco_historial', JSON.stringify(history));
+      console.log('[GameService] Partida archivada con éxito en historial local.');
+    } catch (e) {
+      console.warn('[GameService] No se pudo archivar la partida:', e);
+    }
+  }
+
+  cleanUpGameState() {
+    this.destroyGame();
+    this.juego = null;
+    this.main = undefined as any;
+    this.local = undefined as any;
+    this.vira = undefined as any;
+    this.initialSnapshot = null;
+    this.localPlayerReady = false;
+    this.onWebhookEventCallback = null;
+    console.log('[GameService] Estado del juego limpiado por completo.');
+  }
 }

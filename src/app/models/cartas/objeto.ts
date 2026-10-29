@@ -1,4 +1,4 @@
-import { GameService } from '../../../app/services/game.service';
+import { GameService } from '../../services/game.service';
 
 import { Main } from '../../scenes/main';
 import { DataObjeto } from '../data';
@@ -118,10 +118,10 @@ interface IProps {
 }
 function applyMixins(derivedCtor: any, baseCtors: any[]) {
   baseCtors.forEach(baseCtor => {
-      Object.getOwnPropertyNames(baseCtor.prototype).forEach(name => {
-           if (name !== 'constructor') {
-              derivedCtor.prototype[name] = baseCtor.prototype[name];
-          }
-      });
+    Object.getOwnPropertyNames(baseCtor.prototype).forEach(name => {
+      if (name !== 'constructor') {
+        derivedCtor.prototype[name] = baseCtor.prototype[name];
+      }
+    });
   });
 }

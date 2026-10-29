@@ -18,12 +18,12 @@ import { CreditService } from './services/credit.service';
   `]
 })
 export class AppComponent implements OnInit {
-  constructor(private creditService: CreditService) {}
+  constructor(private creditService: CreditService) { }
 
   ngOnInit() {
     // Check for daily grant on startup
     this.creditService.processDailyGrant();
-    
+
     // Hide loading splash
     const loading = document.getElementById('loading');
     if (loading) {
